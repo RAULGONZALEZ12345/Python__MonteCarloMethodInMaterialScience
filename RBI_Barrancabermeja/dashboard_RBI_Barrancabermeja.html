@@ -76,7 +76,9 @@ details summary{cursor:pointer;font-weight:600}
  <label>Base económica<select id="g_base"><option value="CUANT">Cuantitativa (POF×FC)</option><option value="RAM">RAM (categorías)</option></select></label>
  <label>Nivel RAM máximo<select id="g_obj"><option value="1">1 · Bajo</option><option value="2">2 · Medio</option><option value="3">3 · Medio-alto</option><option value="4">4 · Alto</option></select></label>
  <label>Implantación RBI (USD)<input id="g_impl" type="number" style="width:90px"></label>
- <label>Producción (USD/día)<input id="g_prod" type="number" style="width:100px"></label>
+ <label>Producción paper (USD/día)<input id="g_prod" type="number" style="width:100px"></label>
+ <label>Capacidad GRB (bpd)<input id="g_cap" type="number" style="width:100px"></label>
+ <label>Margen (USD/bbl, supuesto)<input id="g_mar" type="number" style="width:90px"></label>
  <button id="btnReset">Restaurar ejemplos</button>
 </div></div>
 
@@ -109,7 +111,7 @@ details summary{cursor:pointer;font-weight:600}
  <div class="panel"><h2 style="margin-bottom:8px">Calculadora de consecuencia (paper §2.3)</h2>
   <div class="form" id="fcform"></div><div class="steps" id="fcout" style="margin-top:8px"></div>
   <button id="btnUseFC" style="margin-top:8px">Usar DPN como FC del equipo seleccionado</button>
-  <p class="note">Valores del paper: 4.000 USD/m² (reposición), 40.000 USD/día (producción; el paper lo rotula “$/m²”), 10.000 USD/persona, 0,1 pers/m². CA, días de parada, FCaffa, FCenviron y f_mit son supuestos del ejemplo.</p></div>
+  <p class="note">Valores del paper: 4.000 USD/m² (reposición), 40.000 USD/día (producción; el paper lo rotula “$/m²”), 10.000 USD/persona, 0,1 pers/m². Con % de carga > 0 la producción diferida = capacidad × margen × %carga (margen 8 USD/bbl es un supuesto). CA, días de parada, FCaffa, FCenviron y f_mit también son supuestos del ejemplo.</p></div>
 </div>
 </section>
 
@@ -132,29 +134,30 @@ const fmt=(v,d=0)=>isFinite(v)?new Intl.NumberFormat('es-CO',{maximumFractionDig
 const usd=v=>(v<0?'−':'')+'$'+fmt(Math.abs(v));
 const sci=v=>v.toExponential(2).replace('e','E');
 const TIPOS=['Reactor','Intercambiador T&C','Torre','Horno (proxy)','Drum'];
-const MECS={'Adelgazamiento':'E','Corrosión externa':'E','CUI':'E','Sulfidación':'E','HIC/SOHIC':'F','SCC':'F','HTHA':'F'};
+const MECS={'Adelgazamiento':'E','Corrosión externa':'E','CUI':'E','Sulfidación':'E','Corrosión nafténica':'E','HIC/SOHIC':'F','SCC':'F','HTHA':'F'};
 const GFF=3.06e-5, ART=[[0,1],[.05,2],[.10,6],[.15,20],[.20,60],[.30,250],[.40,750],[.50,2000],[.65,5000]];
 const SUS={Alta:500,Media:100,Baja:10,Ninguna:1}, CONF={A:.9,B:.7,C:.5,D:.3,E:.1};
 const FFSF={'No requerido':1,'APTO/PASA':.05,'REVISAR':1}, FFSCOST=[0,3000,15000,60000];
 const PCUT=[2,20,100,1000], CCUT=[1e4,1e5,1e6,1e7], DFREP=[1,6,45,316,2000], FCREP=[5e3,3.16e4,3.16e5,3.16e6,3.16e7];
 const LEV=[[1,1,1,2,2],[1,1,2,2,3],[1,2,2,3,3],[2,2,3,3,4],[2,3,3,4,4]]; // filas P1..P5, cols A..E (paper Fig.5)
 const LETRAS='ABCDE', NY=16;
-const FCDEF={cacmd:60,cainj:60,rep:4000,rho:0.1,vsl:10000,aff:0.25,dias:3,env:20000,mit:0.10};
+const FCDEF={carga:0,cacmd:60,cainj:60,rep:4000,rho:0.1,vsl:10000,aff:0.25,dias:3,env:20000,mit:0.10};
 const EX=[
  {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:0,fr:'',fad:'',cre:0,tbi:4,rbi:6,ppar:2.5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
-const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000};
+const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,mar:8};
 let S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};
-try{const s=localStorage.getItem('rbi_grb_v1');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;}}}catch(e){}
-const save=()=>{try{localStorage.setItem('rbi_grb_v1',JSON.stringify(S))}catch(e){}};
+try{const s=localStorage.getItem('rbi_grb_v2');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;S.g={...G0,...S.g};S.fcd={...FCDEF,...S.fcd};}}}catch(e){}
+const save=()=>{try{localStorage.setItem('rbi_grb_v2',JSON.stringify(S))}catch(e){}};
 
 // ---------- modelo (idéntico al Excel) ----------
 const fmsOf=g=>Math.pow(10,1-0.02*g.score/10);
-function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prod=d.dias*g.prod,inj=d.cainj*d.rho*d.vsl,env=d.env,br=cmd+aff+prod+inj+env;return{cmd,aff,prod,inj,env,br,dpn:br*(1-d.mit)}}
+function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prodDia=d.carga>0?g.cap*g.mar*d.carga:g.prod,prod=d.dias*prodDia,inj=d.cainj*d.rho*d.vsl,env=d.env,br=cmd+aff+prod+inj+env;return{cmd,aff,prod,prodDia,inj,env,br,dpn:br*(1-d.mit)}}
 const catP=df=>1+PCUT.filter(x=>df>x).length, catC=fc=>CCUT.filter(x=>fc>x).length;
 function calc(e,g){
  const fms=fmsOf(g), fc=e.fc==='CALC'?fcCalc(S.fcd,g).dpn:+e.fc;
@@ -204,7 +207,7 @@ function buildForm(){
  });
 }
 function fillForm(){const e=S.rows[S.sel];if(!e)return;FIELDS.forEach(x=>{if(x.length===1)return;const el=$('f_'+x[0]);if(!el||document.activeElement===el)return;el.value=e[x[0]]??''});}
-function buildFC(){const f=$('fcform');f.innerHTML='';[['cacmd','CA daño (m²)'],['cainj','CA lesiones (m²)'],['rep','Reposición (USD/m²)'],['rho','Densidad (pers/m²)'],['vsl','VSL (USD/persona)'],['aff','FCaffa/FCcmd'],['dias','Días de parada'],['env','FCenviron (USD)'],['mit','f_mit']].forEach(([k,l])=>{
+function buildFC(){const f=$('fcform');f.innerHTML='';[['carga','% carga refinería afectada (0 = usar USD/día del paper)'],['cacmd','CA daño (m²)'],['cainj','CA lesiones (m²)'],['rep','Reposición (USD/m²)'],['rho','Densidad (pers/m²)'],['vsl','VSL (USD/persona)'],['aff','FCaffa/FCcmd'],['dias','Días de parada'],['env','FCenviron (USD)'],['mit','f_mit']].forEach(([k,l])=>{
  const lab=document.createElement('label');lab.textContent=l;const el=document.createElement('input');el.type='text';el.inputMode='decimal';el.id='c_'+k;el.value=S.fcd[k];lab.appendChild(el);f.appendChild(lab);
  el.addEventListener('input',()=>{const n=parseFloat(el.value.replace(',','.'));if(!isNaN(n)){S.fcd[k]=n;save();render(false)}})})}
 
@@ -281,7 +284,7 @@ function render(full=true){
  if(yb>0){mark=yb-1+(-tot[yb-1])/(tot[yb]-tot[yb-1]);markT=fmt(mark,1)+' a'}
  lineChart('dcf',[{y:tot,c:'var(--ser1)'}],[...Array(NY).keys()],{mark,markT});
  barChart('bars',cs.map(z=>({n:z.e.tag,a:z.c.ru0,b:z.c.ru1})));
- const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod','días·USD/día',usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
+ const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod',`días·${fmt(fo.prodDia)} USD/día`,usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE = exposición de vidas (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
  if(full)fillForm();
 }
 
@@ -299,7 +302,7 @@ const EQS=['(1) POF = GFF · DF · FMS  [paper Ec. 1]','(2) FMS = 10^(1 − 0,02
 $('eqs').innerHTML=EQS.map(t=>`<div class="mono" style="background:var(--soft);padding:6px 10px;border-radius:5px;font-size:13px">${t}</div>`).join('');
 
 // ---------- eventos ----------
-[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
+[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod'],['cap','g_cap'],['mar','g_mar']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
 $('g_base').value=S.g.base;$('g_base').onchange=e=>{S.g.base=e.target.value;save();render(false)};
 $('g_obj').value=S.g.obj;$('g_obj').onchange=e=>{S.g.obj=+e.target.value;save();render(false)};
 $('btnReset').onclick=()=>{S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};save();location.reload()};
