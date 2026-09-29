@@ -1,0 +1,312 @@
+<title>Tablero RBI Barrancabermeja</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: cabecera con parámetros globales, tarjetas KPI, formulario + lista de equipos, matrices RAM antes/después, panel anual con flujo descontado. Paleta: gris azulado de planta + ámbar de llama; rojo/amarillo/verde solo para riesgo. */
+:root{--bg:#eef1f4;--panel:#ffffff;--ink:#17222d;--mute:#5b6b7a;--line:#d5dce3;--accent:#c2570c;--accent-ink:#ffffff;--good:#1b7f4c;--bad:#b3261e;--soft:#f5f7f9;
+--l1:#7cc68e;--l2:#f3dd7a;--l3:#f0a35a;--l4:#e0604d;--cellink:#1a1a1a;--ser1:#c2570c;--ser2:#2a6f97;--grid:#dfe5ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--ink:#e6ecf1;--mute:#9aabba;--line:#2b3a47;--accent:#f0913f;--accent-ink:#1a1206;--good:#4fc283;--bad:#ff7d72;--soft:#1e2a35;--l1:#3f8f59;--l2:#b39f36;--l3:#b8692a;--l4:#b5402f;--cellink:#f2f2f2;--ser1:#f0913f;--ser2:#6cb4e0;--grid:#26343f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--ink:#e6ecf1;--mute:#9aabba;--line:#2b3a47;--accent:#f0913f;--accent-ink:#1a1206;--good:#4fc283;--bad:#ff7d72;--soft:#1e2a35;--l1:#3f8f59;--l2:#b39f36;--l3:#b8692a;--l4:#b5402f;--cellink:#f2f2f2;--ser1:#f0913f;--ser2:#6cb4e0;--grid:#26343f;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 'IBM Plex Sans',system-ui,sans-serif;padding-inline:16px;padding-block:14px 40px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:'Barlow Semi Condensed','IBM Plex Sans',sans-serif;margin:0;text-wrap:balance}
+h1{font-size:26px;font-weight:700;letter-spacing:.2px}
+h2{font-size:17px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.mono,td.num,.kpi b{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-end;justify-content:space-between}
+header p{margin:2px 0 0;color:var(--mute);max-width:70ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.params{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mute)}
+input,select,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:5px 7px;min-width:0}
+input[type=number]{width:100%;font-family:'IBM Plex Mono',monospace}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{cursor:pointer;background:var(--soft)}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:hover{filter:brightness(1.05)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.kpi span{font-size:12px;color:var(--mute)}
+.kpi b{font-size:20px;font-weight:500}
+.kpi small{font-size:11px;color:var(--mute)}
+.kpi.hl{border-left:4px solid var(--accent)}
+.good{color:var(--good)}.bad{color:var(--bad)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button[aria-selected=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.grid2{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:14px}
+@media(max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.form .full{grid-column:1/-1}
+.form h3{grid-column:1/-1;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-top:6px;border-top:1px solid var(--line);padding-top:8px}
+.form h3:first-child{margin-top:0;border-top:0;padding-top:0}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--mute);font-size:12px;position:sticky;top:0;background:var(--panel)}
+td.num{text-align:right}
+tr.sel{background:var(--soft);outline:2px solid var(--accent);outline-offset:-2px}
+tbody tr{cursor:pointer}
+tfoot td{font-weight:600;border-top:2px solid var(--ink)}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid currentColor}
+.rams{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+svg{max-width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font-family:'IBM Plex Sans',sans-serif}
+.steps{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;font-size:13px}
+.steps div:nth-child(3n+1){color:var(--mute)}
+.steps div:nth-child(3n){font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--mute)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+details summary{cursor:pointer;font-weight:600}
+</style>
+<div class="wrap">
+<header>
+ <div><h1>Tablero RBI · Refinería de Barrancabermeja</h1>
+ <p>Beneficio económico por reducción de riesgo en equipos estáticos: POF·FC (API 581), FFS Apto/No apto con FAD, matriz RAM antes/después y SIR, VAN, ROI. Base: Oropallo et al., Safety Science 177 (2024), doi:10.1016/j.ssci.2024.106570. Filas de ejemplo ilustrativas, no datos reales de GRB.</p></div>
+ <div class="tabs" role="tablist"><button role="tab" id="tabA" aria-selected="true">Evaluación</button><button role="tab" id="tabB" aria-selected="false">Validación con el paper</button><button role="tab" id="tabC" aria-selected="false">Fórmulas</button></div>
+</header>
+
+<section id="viewA" class="wrap" style="gap:14px">
+<div class="panel"><div class="params">
+ <label>Año de evaluación<input id="g_anio" type="number" style="width:90px"></label>
+ <label>Score SGA (0–1000)<input id="g_score" type="number" style="width:90px"></label>
+ <label>FMS<output id="g_fms" class="mono" style="padding:5px 0">–</output></label>
+ <label>Horizonte N (años)<input id="g_N" type="number" style="width:80px"></label>
+ <label>Base económica<select id="g_base"><option value="CUANT">Cuantitativa (POF×FC)</option><option value="RAM">RAM (categorías)</option></select></label>
+ <label>Nivel RAM máximo<select id="g_obj"><option value="1">1 · Bajo</option><option value="2">2 · Medio</option><option value="3">3 · Medio-alto</option><option value="4">4 · Alto</option></select></label>
+ <label>Implantación RBI (USD)<input id="g_impl" type="number" style="width:90px"></label>
+ <label>Producción (USD/día)<input id="g_prod" type="number" style="width:100px"></label>
+ <button id="btnReset">Restaurar ejemplos</button>
+</div></div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid2">
+ <div class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h2>Equipo</h2><span><button id="btnAdd" class="pri">+ Nuevo</button> <button id="btnDel">Eliminar</button></span></div>
+  <div class="form" id="form"></div>
+ </div>
+ <div class="panel" style="display:flex;flex-direction:column;gap:14px">
+  <div><h2 style="margin-bottom:8px">Equipos evaluados en el año</h2><div class="tw" style="max-height:340px;overflow:auto"><table id="tbl"></table></div></div>
+  <div><h2 style="margin-bottom:8px">Detalle de cálculo del equipo seleccionado</h2><div class="steps" id="steps"></div></div>
+ </div>
+</div>
+
+<div class="panel"><h2 style="margin-bottom:8px">Matriz RAM 5×5 · antes y después de RBI + FFS</h2>
+ <div class="rams"><div><h3 style="font-size:14px;margin-bottom:4px">Antes</h3><svg id="ramA" viewBox="0 0 360 330" role="img" aria-label="Matriz RAM antes"></svg></div>
+ <div><h3 style="font-size:14px;margin-bottom:4px">Después</h3><svg id="ramB" viewBox="0 0 360 330" role="img" aria-label="Matriz RAM después"></svg></div></div>
+ <div class="legend" style="margin-top:6px"><span><i style="background:var(--l1)"></i>Bajo</span><span><i style="background:var(--l2)"></i>Medio</span><span><i style="background:var(--l3)"></i>Medio-alto</span><span><i style="background:var(--l4)"></i>Alto</span><span>Filas: probabilidad 1–5 · Columnas: consecuencia A–E · Borde grueso = equipo seleccionado</span></div>
+</div>
+
+<div class="split">
+ <div class="panel"><h2 style="margin-bottom:8px">Resumen anual</h2><div class="tw"><table id="annual"></table></div></div>
+ <div class="panel"><h2 style="margin-bottom:4px">Flujo neto descontado acumulado (USD)</h2><svg id="dcf" viewBox="0 0 520 260" role="img" aria-label="Flujo neto descontado acumulado"></svg></div>
+</div>
+<div class="split">
+ <div class="panel"><h2 style="margin-bottom:4px">Riesgo inicial vs residual por equipo (USD/año)</h2><svg id="bars" viewBox="0 0 520 260" role="img" aria-label="Riesgo por equipo"></svg>
+  <div class="legend"><span><i style="background:var(--ser1)"></i>Inicial</span><span><i style="background:var(--ser2)"></i>Residual</span></div></div>
+ <div class="panel"><h2 style="margin-bottom:8px">Calculadora de consecuencia (paper §2.3)</h2>
+  <div class="form" id="fcform"></div><div class="steps" id="fcout" style="margin-top:8px"></div>
+  <button id="btnUseFC" style="margin-top:8px">Usar DPN como FC del equipo seleccionado</button>
+  <p class="note">Valores del paper: 4.000 USD/m² (reposición), 40.000 USD/día (producción; el paper lo rotula “$/m²”), 10.000 USD/persona, 0,1 pers/m². CA, días de parada, FCaffa, FCenviron y f_mit son supuestos del ejemplo.</p></div>
+</div>
+</section>
+
+<section id="viewB" class="wrap" style="gap:14px" hidden>
+ <div class="panel"><h2 style="margin-bottom:4px">Costos acumulados TBI vs RBI estrategia 2 (intrusiva), 2023–2056 · réplica de Fig. 7 del paper</h2><svg id="cum" viewBox="0 0 640 280" role="img" aria-label="Costos acumulados"></svg>
+ <div class="legend"><span><i style="background:var(--ser1)"></i>TBI (Tabla 9): 43.360 USD</span><span><i style="background:var(--ser2)"></i>RBI estrategia 2 (Tabla 7, filas): 1.410 USD</span></div></div>
+ <div class="panel"><h2 style="margin-bottom:8px">Comprobaciones aritméticas de las Tablas 7–10</h2><div class="tw"><table id="chk"></table></div>
+ <p class="note" id="valnote"></p></div>
+</section>
+
+<section id="viewC" class="wrap" hidden>
+ <div class="panel"><h2 style="margin-bottom:8px">Ecuaciones (las mismas del Excel y del Word)</h2><div id="eqs" style="display:grid;gap:6px"></div></div>
+</section>
+<p class="note">Fuentes: Oropallo et al. 2024 (doi:10.1016/j.ssci.2024.106570) §2.2 Ec. 1–13, §2.3, §3 Tablas 1–10, Fig. 5–8; Bertolini et al. 2009 (doi:10.1016/j.jlp.2009.01.003); Khan y Haddara 2004 (doi:10.1002/prs.10010); Rodríguez-Prieto et al. 2020 (doi:10.1109/ACCESS.2020.2994619); Bhatia et al. 2019 (doi:10.1016/j.jlp.2019.103974); Straub y Faber 2005 (doi:10.1016/j.strusafe.2005.04.001). Normas: API RP 581, API 579-1/ASME FFS-1, ASME PCC-3, ISO 55001/55010, ISO 15663 (sin DOI; verificar numeración de secciones en su edición). Los factores simplificados (tabla Art→DF, susceptibilidad, f_FFS) son parámetros del modelo, no valores de API 581.</p>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(v,d=0)=>isFinite(v)?new Intl.NumberFormat('es-CO',{maximumFractionDigits:d,minimumFractionDigits:d}).format(v):'–';
+const usd=v=>(v<0?'−':'')+'$'+fmt(Math.abs(v));
+const sci=v=>v.toExponential(2).replace('e','E');
+const TIPOS=['Reactor','Intercambiador T&C','Torre','Horno (proxy)','Drum'];
+const MECS={'Adelgazamiento':'E','Corrosión externa':'E','CUI':'E','Sulfidación':'E','HIC/SOHIC':'F','SCC':'F','HTHA':'F'};
+const GFF=3.06e-5, ART=[[0,1],[.05,2],[.10,6],[.15,20],[.20,60],[.30,250],[.40,750],[.50,2000],[.65,5000]];
+const SUS={Alta:500,Media:100,Baja:10,Ninguna:1}, CONF={A:.9,B:.7,C:.5,D:.3,E:.1};
+const FFSF={'No requerido':1,'APTO/PASA':.05,'REVISAR':1}, FFSCOST=[0,3000,15000,60000];
+const PCUT=[2,20,100,1000], CCUT=[1e4,1e5,1e6,1e7], DFREP=[1,6,45,316,2000], FCREP=[5e3,3.16e4,3.16e5,3.16e6,3.16e7];
+const LEV=[[1,1,1,2,2],[1,1,2,2,3],[1,2,2,3,3],[2,2,3,3,4],[2,3,3,4,4]]; // filas P1..P5, cols A..E (paper Fig.5)
+const LETRAS='ABCDE', NY=16;
+const FCDEF={cacmd:60,cainj:60,rep:4000,rho:0.1,vsl:10000,aff:0.25,dias:3,env:20000,mit:0.10};
+const EX=[
+ {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:0,fr:'',fad:'',cre:0,tbi:4,rbi:6,ppar:2.5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
+const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000};
+let S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};
+try{const s=localStorage.getItem('rbi_grb_v1');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;}}}catch(e){}
+const save=()=>{try{localStorage.setItem('rbi_grb_v1',JSON.stringify(S))}catch(e){}};
+
+// ---------- modelo (idéntico al Excel) ----------
+const fmsOf=g=>Math.pow(10,1-0.02*g.score/10);
+function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prod=d.dias*g.prod,inj=d.cainj*d.rho*d.vsl,env=d.env,br=cmd+aff+prod+inj+env;return{cmd,aff,prod,inj,env,br,dpn:br*(1-d.mit)}}
+const catP=df=>1+PCUT.filter(x=>df>x).length, catC=fc=>CCUT.filter(x=>fc>x).length;
+function calc(e,g){
+ const fms=fmsOf(g), fc=e.fc==='CALC'?fcCalc(S.fcd,g).dpn:+e.fc;
+ const age=g.anio-e.ai, art=e.t>0?e.cr*age/e.t:0;
+ const dfs=MECS[e.mec]==='F'?(SUS[e.sus]??1):ART.filter(a=>art>=a[0]).pop()[1];
+ const df0=e.dfu!==''&&e.dfu!=null&&!isNaN(+e.dfu)?+e.dfu:dfs;
+ const pof0=GFF*df0*fms, rq0=pof0*fc;
+ const fl=+e.fl||0, ffs=fl===0?'No requerido':(e.fr==='Apto'&&e.fad==='Pasa'?'APTO/PASA':(e.fr==='No apto'?'NO APTO/REPARAR':'REVISAR'));
+ const df1=ffs==='NO APTO/REPARAR'?1:Math.max(1,df0*(1-CONF[e.ef])*FFSF[ffs]);
+ const pof1=GFF*df1*fms, rq1=pof1*fc;
+ const p0c=catP(df0),c0c=catC(fc),p1c=catP(df1),c1c=catC(fc);
+ const p0=e.p0==='auto'?p0c:+e.p0, c0=e.c0==='auto'?c0c:LETRAS.indexOf(e.c0);
+ const p1=e.p1==='auto'?p1c:+e.p1, c1=e.c1==='auto'?c1c:LETRAS.indexOf(e.c1);
+ const rr0=GFF*fms*DFREP[p0-1]*FCREP[c0], rr1=GFF*fms*DFREP[p1-1]*FCREP[c1];
+ const ru0=g.base==='RAM'?rr0:rq0, ru1=g.base==='RAM'?rr1:rq1, rr=ru0-ru1;
+ const rrp=rr*(+e.fcp||0), rro=rr-rrp;
+ const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*dif:0, ahp=isFinite(dif)?e.ppar*dif:0, ah=rr+ahi+ahp;
+ const i0=e.ci+FFSCOST[fl]+(ffs==='NO APTO/REPARAR'?(+e.cre||0):0)+g.impl;
+ const fa=e.r===0?g.N:(1-Math.pow(1+e.r,-g.N))/e.r, vpa=ah*fa, sir=i0>0?vpa/i0:0, van=vpa-i0;
+ const roi=i0>0?(g.N*ah-i0)/i0:0, pb=ah>0?i0/ah:Infinity;
+ const pbd=ah<=0?Infinity:(e.r===0?i0/ah:(1-i0*e.r/ah>0?-Math.log(1-i0*e.r/ah)/Math.log(1+e.r):Infinity));
+ const bna=ah-i0/fa;
+ const cum=[...Array(NY)].map((_,t)=>-i0+(e.r===0?ah*Math.min(t,g.N):ah*(1-Math.pow(1+e.r,-Math.min(t,g.N)))/e.r));
+ return{fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
+  nv0:LEV[p0-1][c0],nv1:LEV[p1-1][c1],conc:(e.p0==='auto'||(p0===p0c&&c0===c0c))&&(e.p1==='auto'||(p1===p1c&&c1===c1c)),ok:sir>1}}
+
+// ---------- UI ----------
+const FIELDS=[['Identificación'],['tag','Tag','text'],['pl','Planta','text'],['tipo','Tipo de equipo',TIPOS],['flu','Fluido','text'],
+ ['Condiciones y daño'],['P','P (bar)','n'],['T','T (°C)','n'],['t','Espesor medido (mm)','n'],['cr','Tasa corrosión (mm/año)','n'],['ai','Año última inspección','n'],
+ ['mec','Mecanismo de daño',Object.keys(MECS)],['sus','Susceptibilidad (fisuración)',['Alta','Media','Baja','Ninguna']],['dfu','DF inicial (opcional, del cálculo previo)','n'],
+ ['Consecuencia y costos'],['fc','FC (USD)','fc'],['fcp','% del FC por producción','n'],['ci','Costo inspección (USD)','n'],['r','Tasa de descuento','n'],
+ ['tbi','Intervalo TBI (años)','n'],['rbi','Intervalo RBI (años)','n'],['ppar','Pérdida producción por parada (USD)','n'],
+ ['Inspección y FFS'],['ef','Efectividad inspección',['A','B','C','D','E']],['fl','Nivel FFS',['0','1','2','3']],['fr','FFS: resultado',['','Apto','No apto']],['fad','FAD',['','Pasa','No pasa']],['cre','Costo reparación/reemplazo (USD)','n'],
+ ['RAM (auto = categoría calculada)'],['p0','P inicial',['auto','1','2','3','4','5']],['c0','C inicial',['auto',...LETRAS]],['p1','P posterior',['auto','1','2','3','4','5']],['c1','C posterior',['auto',...LETRAS]]];
+function buildForm(){
+ const f=$('form');f.innerHTML='';
+ FIELDS.forEach(x=>{
+  if(x.length===1){const h=document.createElement('h3');h.textContent=x[0];f.appendChild(h);return}
+  const [k,l,t]=x,lab=document.createElement('label');lab.textContent=l;let el;
+  if(Array.isArray(t)){el=document.createElement('select');t.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o===''?'—':o;el.appendChild(op)})}
+  else{el=document.createElement('input');el.type=(t==='n'||t==='fc')?'text':'text';el.inputMode=(t==='n'||t==='fc')?'decimal':'text'}
+  el.id='f_'+k;if(t==='text'||(Array.isArray(t)&&['tipo'].includes(k)))lab.classList.add('full');if(k==='mec'||k==='tag')lab.classList.remove('full');
+  lab.appendChild(el);f.appendChild(lab);
+  el.addEventListener('input',()=>{const e=S.rows[S.sel];if(!e)return;let v=el.value;
+   if(t==='n'||t==='fc'){ if(t==='fc'&&v.trim().toUpperCase()==='CALC'){e[k]='CALC'} else if(k==='dfu'&&v.trim()===''){e[k]=''} else {const n=parseFloat(v.replace(',','.'));if(!isNaN(n)){e[k]=(k==='r'&&n>1)?n/100:n}}}
+   else if(k==='fl')e[k]=+v; else e[k]=v; save();render(false)});
+ });
+}
+function fillForm(){const e=S.rows[S.sel];if(!e)return;FIELDS.forEach(x=>{if(x.length===1)return;const el=$('f_'+x[0]);if(!el||document.activeElement===el)return;el.value=e[x[0]]??''});}
+function buildFC(){const f=$('fcform');f.innerHTML='';[['cacmd','CA daño (m²)'],['cainj','CA lesiones (m²)'],['rep','Reposición (USD/m²)'],['rho','Densidad (pers/m²)'],['vsl','VSL (USD/persona)'],['aff','FCaffa/FCcmd'],['dias','Días de parada'],['env','FCenviron (USD)'],['mit','f_mit']].forEach(([k,l])=>{
+ const lab=document.createElement('label');lab.textContent=l;const el=document.createElement('input');el.type='text';el.inputMode='decimal';el.id='c_'+k;el.value=S.fcd[k];lab.appendChild(el);f.appendChild(lab);
+ el.addEventListener('input',()=>{const n=parseFloat(el.value.replace(',','.'));if(!isNaN(n)){S.fcd[k]=n;save();render(false)}})})}
+
+function level(l){return ['','var(--l1)','var(--l2)','var(--l3)','var(--l4)'][l]}
+function drawRam(id,calcs,which){
+ const svg=$(id),x0=44,y0=8,w=62,h=52;let o='';
+ for(let p=5;p>=1;p--)for(let c=0;c<5;c++){
+  const x=x0+c*w,y=y0+(5-p)*h;o+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${level(LEV[p-1][c])}" stroke="var(--panel)" stroke-width="2"/>`;
+  const tags=calcs.filter(z=>(which==='a'?z.c.p0===p&&z.c.c0===c:z.c.p1===p&&z.c.c1===c));
+  tags.slice(0,3).forEach((z,i)=>{const isel=z.i===S.sel;o+=`<text x="${x+w/2}" y="${y+16+i*14}" text-anchor="middle" font-size="11" font-weight="${isel?700:500}" style="fill:var(--cellink)">${isel?'● ':''}${z.e.tag}</text>`});
+  if(tags.length>3)o+=`<text x="${x+w/2}" y="${y+h-5}" text-anchor="middle" font-size="10" style="fill:var(--cellink)">+${tags.length-3} más</text>`;
+  const sel=calcs.find(z=>z.i===S.sel&&(which==='a'?z.c.p0===p&&z.c.c0===c:z.c.p1===p&&z.c.c1===c));
+  if(sel)o+=`<rect x="${x+1.5}" y="${y+1.5}" width="${w-3}" height="${h-3}" fill="none" stroke="var(--ink)" stroke-width="3"/>`}
+ for(let p=5;p>=1;p--)o+=`<text x="${x0-10}" y="${y0+(5-p)*h+h/2+4}" text-anchor="end" font-size="12">${p}</text>`;
+ for(let c=0;c<5;c++)o+=`<text x="${x0+c*w+w/2}" y="${y0+5*h+16}" text-anchor="middle" font-size="12">${LETRAS[c]}</text>`;
+ o+=`<text x="${x0+155}" y="${y0+5*h+32}" text-anchor="middle" font-size="11" style="fill:var(--mute)">Consecuencia</text><text transform="translate(10 ${y0+130}) rotate(-90)" text-anchor="middle" font-size="11" style="fill:var(--mute)">Probabilidad</text>`;
+ svg.innerHTML=o}
+function lineChart(id,series,xs,opts={}){
+ const svg=$(id),vb=svg.viewBox.baseVal,W=vb.width,H=vb.height,m={l:62,r:14,t:12,b:34};
+ const all=series.flatMap(s=>s.y);let lo=Math.min(0,...all),hi=Math.max(0,...all);if(hi===lo)hi=lo+1;
+ const nice=(a,b)=>{const span=b-a,st=Math.pow(10,Math.floor(Math.log10(span/4)));const k=[1,2,2.5,5,10].find(k=>span/(k*st)<=5)*st;return[Math.floor(a/k)*k,Math.ceil(b/k)*k,k]};
+ const [a,b,k]=nice(lo,hi);const X=i=>m.l+(W-m.l-m.r)*i/(xs.length-1),Y=v=>H-m.b-(H-m.t-m.b)*(v-a)/(b-a);let o='';
+ for(let v=a;v<=b+1e-9;v+=k){o+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end" font-size="10" class="mono">${fmt(v)}</text>`}
+ o+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mute)"/>`;
+ const step=Math.ceil(xs.length/8);xs.forEach((x,i)=>{if(i%step===0||i===xs.length-1)o+=`<text x="${X(i)}" y="${H-m.b+15}" text-anchor="middle" font-size="10">${x}</text>`});
+ series.forEach(s=>{const d=s.y.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  o+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2.2"/><circle cx="${X(s.y.length-1)}" cy="${Y(s.y[s.y.length-1])}" r="3.5" fill="${s.c}"/>`});
+ if(opts.mark!=null&&opts.mark>=0&&opts.mark<=xs.length-1)o+=`<line x1="${X(opts.mark)}" x2="${X(opts.mark)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--good)" stroke-dasharray="4 3"/><text x="${X(opts.mark)+4}" y="${m.t+10}" font-size="10" style="fill:var(--good)">recuperación ≈ ${opts.markT}</text>`;
+ svg.innerHTML=o}
+function barChart(id,items){
+ const svg=$(id),W=520,rowH=Math.max(26,Math.min(38,220/Math.max(items.length,1))),H=Math.max(120,items.length*rowH+30);svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ const mx=Math.max(1,...items.flatMap(i=>[i.a,i.b])),X=v=>(W-150)*v/mx;let o='';
+ items.forEach((it,i)=>{const y=6+i*rowH;o+=`<text x="4" y="${y+rowH/2}" font-size="12" font-weight="600">${it.n}</text>
+  <rect x="70" y="${y+2}" width="${Math.max(1,X(it.a))}" height="${rowH/2-3}" fill="var(--ser1)" rx="2"/><text x="${74+X(it.a)}" y="${y+rowH/2-3}" font-size="10" class="mono">${fmt(it.a)}</text>
+  <rect x="70" y="${y+rowH/2}" width="${Math.max(1,X(it.b))}" height="${rowH/2-3}" fill="var(--ser2)" rx="2"/><text x="${74+X(it.b)}" y="${y+rowH-4}" font-size="10" class="mono">${fmt(it.b)}</text>`});
+ svg.innerHTML=o}
+
+function render(full=true){
+ const g=S.g;$('g_fms').textContent=fmsOf(g).toFixed(3);
+ const cs=S.rows.map((e,i)=>({e,i,c:calc(e,g)}));const sum=k=>cs.reduce((a,z)=>a+z.c[k],0);
+ const R0=sum('ru0'),R1=sum('ru1'),RR=sum('rr'),AHI=sum('ahi'),AHP=sum('ahp'),AH=sum('ah'),I0=sum('i0'),VPA=sum('vpa'),VAN=sum('van'),BNA=sum('bna');
+ const sirAvg=cs.length?cs.reduce((a,z)=>a+z.c.sir,0)/cs.length:0,sirAgg=I0>0?VPA/I0:0,roi=I0>0?(g.N*AH-I0)/I0:0,pb=AH>0?I0/AH:Infinity;
+ const rAvg=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:0;const pbd=AH>0&&1-I0*rAvg/AH>0?-Math.log(1-I0*rAvg/AH)/Math.log(1+rAvg):Infinity;
+ const K=[['Riesgo inicial agregado',usd(R0),'USD/año',1],['Riesgo residual',usd(R1),'USD/año'],['Reducción total',usd(RR),R0>0?fmt(100*RR/R0,1)+' % del inicial':'USD/año',1],['SIR promedio',fmt(sirAvg,2),'agregado '+fmt(sirAgg,2)+' (>1 acepta)',1],
+  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA']];
+ $('kpis').innerHTML=K.map(k=>`<div class="kpi${k[3]?' hl':''}"><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
+ // tabla
+ const tb=$('tbl');tb.innerHTML=`<thead><tr><th>Tag</th><th>RAM ini→post</th><th>FFS</th><th class="num">Riesgo ini</th><th class="num">Residual</th><th class="num">RR</th><th class="num">SIR</th><th class="num">VAN</th><th>Decisión</th></tr></thead><tbody>${cs.map(z=>{const c=z.c;
+  return`<tr data-i="${z.i}" class="${z.i===S.sel?'sel':''}"><td><b>${z.e.tag||'(sin tag)'}</b><br><span class="note">${z.e.tipo}</span></td><td>${c.p0}${LETRAS[c.c0]} → ${c.p1}${LETRAS[c.c1]}${c.conc?'':' <span class="pill bad" title="Categoría elegida ≠ calculada">revisar</span>'}<br><span class="note">nivel ${c.nv0} → ${c.nv1} ${c.nv1>g.obj?'<span class="bad">excede objetivo</span>':''}</span></td><td>${c.ffs}</td><td class="num">${usd(c.ru0)}</td><td class="num">${usd(c.ru1)}</td><td class="num">${usd(c.rr)}</td><td class="num">${fmt(c.sir,2)}</td><td class="num">${usd(c.van)}</td><td><span class="pill ${c.ok?'good':'bad'}">${c.ok?'ACEPTABLE':'NO ACEPTABLE'}</span></td></tr>`}).join('')}</tbody><tfoot><tr><td>AHORROS TOTALES</td><td></td><td></td><td class="num">${usd(R0)}</td><td class="num">${usd(R1)}</td><td class="num">${usd(RR)}</td><td class="num">${fmt(sirAgg,2)}</td><td class="num">${usd(VAN)}</td><td></td></tr></tfoot>`;
+ tb.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{S.sel=+tr.dataset.i;save();fillForm();render(false)});
+ // detalle
+ const z=cs[S.sel];
+ if(z){const c=z.c,e=z.e;const rows=[
+  ['Edad = año − última inspección',`${g.anio} − ${e.ai}`,c.age+' años'],['Art = CR·edad/t (Ec. 3)',`${e.cr}·${c.age}/${e.t}`,fmt(c.art,3)],
+  ['DF inicial (Ec. 4)',e.dfu!==''?'ingresado por usuario':(MECS[e.mec]==='F'?'susceptibilidad '+e.sus:'tabla Art→DF'),fmt(c.df0,1)],
+  ['POF inicial (Ec. 1)',`${sci(GFF)}·${fmt(c.df0,1)}·${c.fms.toFixed(3)}`,sci(c.pof0)+' /año'],['FC (Ec. 6)',e.fc==='CALC'?'de la calculadora (DPN)':'ingresado',usd(c.fc)],
+  ['Riesgo inicial (Ec. 8)','POF·FC',usd(c.rq0)+'/año'],['Estado FFS',`nivel ${e.fl}, ${e.fr||'—'}, FAD ${e.fad||'—'}`,c.ffs],
+  ['DF posterior (Ec. 5)',`máx(1, ${fmt(c.df0,1)}·${fmt(1-CONF[e.ef],2)}·f_FFS)`,fmt(c.df1,2)],['Riesgo posterior','POF·FC',usd(c.rq1)+'/año'],
+  ['Categorías RAM',`calculada ${c.p0c}${LETRAS[c.c0c]} → ${c.p1c}${LETRAS[c.c1c]}`,`${c.p0}${LETRAS[c.c0]} → ${c.p1}${LETRAS[c.c1]}`],
+  ['Reducción de riesgo (Ec. 9)',`producción ${usd(c.rrp)} · otras ${usd(c.rro)}`,usd(c.rr)+'/año'],
+  ['Ahorro por diferimiento (Ec. 10)',`inspección ${usd(c.ahi)} · producción ${usd(c.ahp)}`,usd(c.ahi+c.ahp)+'/año'],
+  ['Inversión I0 (Ec. 11)',`inspección + FFS + reparación + implantación`,usd(c.i0)],['VP ahorros (Ec. 12)',`A=${usd(c.ah)}·FA ${fmt(c.fa,3)}`,usd(c.vpa)],
+  ['SIR / VAN',`${fmt(c.sir,2)} · ${c.ok?'aceptable':'no aceptable'}`,usd(c.van)],['ROI · recuperación',`descontada ${isFinite(c.pbd)?fmt(c.pbd,1)+' a':'—'}`,`${fmt(100*c.roi,0)} % · ${isFinite(c.pb)?fmt(c.pb,1)+' a':'—'}`]];
+  $('steps').innerHTML=rows.map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('')}
+ drawRam('ramA',cs,'a');drawRam('ramB',cs,'b');
+ // resumen anual
+ const pr=(l,v,b)=>`<tr><td${b?' style="font-weight:600"':''}>${l}</td><td class="num"${b?' style="font-weight:600"':''}>${v}</td></tr>`;
+ $('annual').innerHTML=`<tbody>${pr('Equipos evaluados / con SIR>1',cs.length+' / '+cs.filter(z=>z.c.ok).length)}${pr('Beneficio por reducción de riesgo',usd(RR)+'/año',1)}
+  ${pr('&nbsp;&nbsp;de la cual producción',usd(sum('rrp')))}${pr('&nbsp;&nbsp;de la cual otras consecuencias',usd(sum('rro')))}
+  ${pr('Ahorro por diferimiento: menor inspección',usd(AHI)+'/año')}${pr('Ahorro por diferimiento: menor pérdida de producción',usd(AHP)+'/año')}
+  ${pr('Ahorro anual total',usd(AH)+'/año',1)}${pr('Costo total de inspecciones y reparaciones (I0)',usd(I0))}${pr('VP ahorros',usd(VPA))}${pr('Beneficio neto anual',usd(BNA)+'/año',1)}${pr('VAN total',usd(VAN),1)}${pr('Equipos por encima del objetivo (después)',cs.filter(z=>z.c.nv1>g.obj).length)}</tbody>`;
+ const tot=[...Array(NY)].map((_,t)=>cs.reduce((a,z)=>a+z.c.cum[t],0));
+ const yb=tot.findIndex((v,i)=>i>0&&v>=0&&tot[i-1]<0);let mark=null,markT='';
+ if(yb>0){mark=yb-1+(-tot[yb-1])/(tot[yb]-tot[yb-1]);markT=fmt(mark,1)+' a'}
+ lineChart('dcf',[{y:tot,c:'var(--ser1)'}],[...Array(NY).keys()],{mark,markT});
+ barChart('bars',cs.map(z=>({n:z.e.tag,a:z.c.ru0,b:z.c.ru1})));
+ const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod','días·USD/día',usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
+ if(full)fillForm();
+}
+
+// ---------- validación paper ----------
+const TBI={2023:240,2026:240,2029:10360,2032:240,2035:240,2038:10360,2041:240,2044:240,2047:10360,2050:240,2053:240,2056:10360};
+const S2={2023:210,2033:600,2050:600};
+function validacion(){
+ const yrs=[...Array(34).keys()].map(i=>2023+i),cum=d=>yrs.map(y=>Object.entries(d).filter(([k])=>+k<=y).reduce((a,[,v])=>a+v,0));
+ lineChart('cum',[{y:cum(TBI),c:'var(--ser1)'},{y:cum(S2),c:'var(--ser2)'}],yrs);
+ const rows=[['Tabla 9 TBI intrusivo','8·240 + 4·360 + 4·10.000',43360,43360],['Tabla 10 TBI no intrusivo','8·240 + 4·480',3840,3840],['Tabla 7 estrategia 1','210 + 720 + 720 + 10.000',11650,11650],['Tabla 7 estrategia 2','210 + 600 + 600',1170,1410],['Tabla 7 estrategia 3','210 + 480 + 480 + 600',1770,1770],['Tabla 7 estrategia 4','210 + 360 + 480 + 360',1410,1410],['Tabla 8 estrategia 1','210 + 720 + 1.080',1080,2010],['Tabla 8 estrategia 2','210 + 600 + 360',1170,1170]];
+ $('chk').innerHTML=`<thead><tr><th>Cifra</th><th>Suma de filas</th><th class="num">Impreso</th><th class="num">Recalculado</th><th>Estado</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${fmt(r[2])}</td><td class="num">${fmt(r[3])}</td><td><span class="pill ${r[2]===r[3]?'good':'bad'}">${r[2]===r[3]?'coincide':'no coincide'}</span></td></tr>`).join('')}</tbody>`;
+ const pv=(d,r=.10)=>Object.entries(d).reduce((a,[y,v])=>a+v/Math.pow(1+r,y-2023),0);
+ $('valnote').innerHTML=`Con las filas recalculadas, el ahorro nominal TBI→RBI-2 es ${usd(43360-1410)}; a 10 % el VP de TBI es ${usd(pv(TBI))} y el de RBI-2 ${usd(pv(S2))}, por lo que SIR = (${fmt(pv(TBI)-pv(S2))})/${fmt(pv(S2))} = ${fmt((pv(TBI)-pv(S2))/pv(S2),1)} (cálculo propio, no aparece en el paper). Con el total recalculado de la Tabla 8 (2.010), la estrategia 1 no intrusiva no sería la más barata como afirma §3. También: nota de la Tabla 6 define CUIF-C como “efectividad B” y la tasa total 0,132 mm/año de §2.3 no se reproduce con 0,05 + 0,025 + 0,127.`}
+const EQS=['(1) POF = GFF · DF · FMS  [paper Ec. 1]','(2) FMS = 10^(1 − 0,02·score/10)','(3) Art = CR · edad / t  [paper Ec. 4]','(4) DF_ini = DF del usuario, o T2(Art) / T3(susceptibilidad)','(5) DF_post = máx[1; DF_ini·(1 − confianza A–E)·f_FFS]; No apto ⇒ reparar ⇒ DF = 1','(6) FC = FCcmd + FCaffa + FCprod + FCinj + FCenviron  [paper Ec. 13]','(7) FCinj = CA_inj·ρ·VSL; LSE = POF·CA_inj·ρ; DPN = FC·(1 − f_mit)','(8) Riesgo = POF · FC','(9) RR = Riesgo_inicial − Riesgo_posterior','(10) AD = (C_insp + L_parada)·(1/T_TBI − 1/T_RBI)','(11) I0 = C_insp + C_FFS + C_reparación + C_implantación','(12) A = RR + AD; FA = [1 − (1+r)^−N]/r; SIR = A·FA / I0 (aceptable si > 1); VAN = A·FA − I0; ROI = (N·A − I0)/I0; recuperación = I0/A; descontada = −ln(1 − I0·r/A)/ln(1+r)'];
+$('eqs').innerHTML=EQS.map(t=>`<div class="mono" style="background:var(--soft);padding:6px 10px;border-radius:5px;font-size:13px">${t}</div>`).join('');
+
+// ---------- eventos ----------
+[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
+$('g_base').value=S.g.base;$('g_base').onchange=e=>{S.g.base=e.target.value;save();render(false)};
+$('g_obj').value=S.g.obj;$('g_obj').onchange=e=>{S.g.obj=+e.target.value;save();render(false)};
+$('btnReset').onclick=()=>{S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};save();location.reload()};
+$('btnAdd').onclick=()=>{S.rows.push({...JSON.parse(JSON.stringify(EX[5])),tag:'NUEVO-'+(S.rows.length+1),pl:'Planta'});S.sel=S.rows.length-1;save();fillForm();render()};
+$('btnDel').onclick=()=>{if(S.rows.length<=1)return;S.rows.splice(S.sel,1);S.sel=Math.max(0,S.sel-1);save();render()};
+$('btnUseFC').onclick=()=>{S.rows[S.sel].fc='CALC';save();fillForm();render()};
+const tabs={tabA:'viewA',tabB:'viewB',tabC:'viewC'};
+Object.keys(tabs).forEach(t=>$(t).onclick=()=>{Object.keys(tabs).forEach(u=>{$(u).setAttribute('aria-selected',u===t);$(tabs[u]).hidden=u!==t})});
+buildForm();buildFC();validacion();render();
+</script>
