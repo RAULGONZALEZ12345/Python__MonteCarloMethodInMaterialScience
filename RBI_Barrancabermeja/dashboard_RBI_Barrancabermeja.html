@@ -7,6 +7,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--ink:#e6ecf1;--mute:#9aabba;--line:#2b3a47;--accent:#f0913f;--accent-ink:#1a1206;--good:#4fc283;--bad:#ff7d72;--soft:#1e2a35;--l1:#3f8f59;--l2:#b39f36;--l3:#b8692a;--l4:#b5402f;--cellink:#f2f2f2;--ser1:#f0913f;--ser2:#6cb4e0;--grid:#26343f;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--ink:#e6ecf1;--mute:#9aabba;--line:#2b3a47;--accent:#f0913f;--accent-ink:#1a1206;--good:#4fc283;--bad:#ff7d72;--soft:#1e2a35;--l1:#3f8f59;--l2:#b39f36;--l3:#b8692a;--l4:#b5402f;--cellink:#f2f2f2;--ser1:#f0913f;--ser2:#6cb4e0;--grid:#26343f;color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 'IBM Plex Sans',system-ui,sans-serif;padding-inline:16px;padding-block:14px 40px}
 .wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 h1,h2,h3{font-family:'Barlow Semi Condensed','IBM Plex Sans',sans-serif;margin:0;text-wrap:balance}
@@ -64,7 +65,7 @@ details summary{cursor:pointer;font-weight:600}
 <header>
  <div><h1>Tablero RBI · Refinería de Barrancabermeja</h1>
  <p>Beneficio económico por reducción de riesgo en equipos estáticos: POF·FC (API 581), FFS Apto/No apto con FAD, matriz RAM antes/después y SIR, VAN, ROI. Base: Oropallo et al., Safety Science 177 (2024), doi:10.1016/j.ssci.2024.106570. Filas de ejemplo ilustrativas, no datos reales de GRB.</p></div>
- <div class="tabs" role="tablist"><button role="tab" id="tabA" aria-selected="true">Evaluación</button><button role="tab" id="tabB" aria-selected="false">Validación con el paper</button><button role="tab" id="tabC" aria-selected="false">Fórmulas</button></div>
+ <div class="tabs" role="tablist"><button role="tab" id="tabA" aria-selected="true">Evaluación</button><button role="tab" id="tabB" aria-selected="false">Validación con el paper</button><button role="tab" id="tabD" aria-selected="false">Flujo DSS</button><button role="tab" id="tabC" aria-selected="false">Fórmulas y trazabilidad</button></div>
 </header>
 
 <section id="viewA" class="wrap" style="gap:14px">
@@ -79,6 +80,7 @@ details summary{cursor:pointer;font-weight:600}
  <label>Producción paper (USD/día)<input id="g_prod" type="number" style="width:100px"></label>
  <label>Capacidad GRB (bpd)<input id="g_cap" type="number" style="width:100px"></label>
  <label>Margen (USD/bbl, supuesto)<input id="g_mar" type="number" style="width:90px"></label>
+ <label>Sensibilidad CR (×)<input id="g_sens" type="number" step="0.05" style="width:80px"></label>
  <button id="btnReset">Restaurar ejemplos</button>
 </div></div>
 
@@ -106,6 +108,10 @@ details summary{cursor:pointer;font-weight:600}
  <div class="panel"><h2 style="margin-bottom:4px">Flujo neto descontado acumulado (USD)</h2><svg id="dcf" viewBox="0 0 520 260" role="img" aria-label="Flujo neto descontado acumulado"></svg></div>
 </div>
 <div class="split">
+ <div class="panel"><h2 style="margin-bottom:4px">Sensibilidad a la tasa de descuento (WACC)</h2><div class="tw"><table id="wacc"></table></div><svg id="waccChart" viewBox="0 0 520 200" role="img" aria-label="SIR vs WACC"></svg><p class="note">Misma tasa para todos los equipos; sensibilidad de CR con el campo “Sensibilidad CR (×)” de arriba (1 = base).</p></div>
+ <div class="panel"><h2 style="margin-bottom:8px">Resumen por planta / unidad</h2><div class="tw"><table id="plantas"></table></div></div>
+</div>
+<div class="split">
  <div class="panel"><h2 style="margin-bottom:4px">Riesgo inicial vs residual por equipo (USD/año)</h2><svg id="bars" viewBox="0 0 520 260" role="img" aria-label="Riesgo por equipo"></svg>
   <div class="legend"><span><i style="background:var(--ser1)"></i>Inicial</span><span><i style="background:var(--ser2)"></i>Residual</span></div></div>
  <div class="panel"><h2 style="margin-bottom:8px">Calculadora de consecuencia (paper §2.3)</h2>
@@ -122,8 +128,12 @@ details summary{cursor:pointer;font-weight:600}
  <p class="note" id="valnote"></p></div>
 </section>
 
+<section id="viewD" class="wrap" hidden>
+ <div class="panel"><h2 style="margin-bottom:8px">Flujo DSS para recipientes a presión (ISO 15663 · API 581 · PCC-3 · API 579)</h2><div id="flow"></div></div>
+</section>
 <section id="viewC" class="wrap" hidden>
  <div class="panel"><h2 style="margin-bottom:8px">Ecuaciones (las mismas del Excel y del Word)</h2><div id="eqs" style="display:grid;gap:6px"></div></div>
+ <div class="panel"><h2 style="margin-bottom:8px">Trazabilidad por fórmula: norma, parte/sección, variables, dominio y origen</h2><div class="tw"><table id="trz"></table></div><p class="note">PAPER = dato o ecuación publicada por Oropallo et al. (2024). NORMA = requisito de la norma citado por el paper o recordado sin acceso al texto (marcado “verificar”). MODELO = definición propia de este DSS. SUPUESTO = valor ilustrativo que el usuario debe sustituir.</p></div>
 </section>
 <p class="note">Fuentes: Oropallo et al. 2024 (doi:10.1016/j.ssci.2024.106570) §2.2 Ec. 1–13, §2.3, §3 Tablas 1–10, Fig. 5–8; Bertolini et al. 2009 (doi:10.1016/j.jlp.2009.01.003); Khan y Haddara 2004 (doi:10.1002/prs.10010); Rodríguez-Prieto et al. 2020 (doi:10.1109/ACCESS.2020.2994619); Bhatia et al. 2019 (doi:10.1016/j.jlp.2019.103974); Straub y Faber 2005 (doi:10.1016/j.strusafe.2005.04.001). Normas: API RP 581, API 579-1/ASME FFS-1, ASME PCC-3, ISO 55001/55010, ISO 15663 (sin DOI; verificar numeración de secciones en su edición). Los factores simplificados (tabla Art→DF, susceptibilidad, f_FFS) son parámetros del modelo, no valores de API 581.</p>
 </div>
@@ -137,20 +147,20 @@ const TIPOS=['Reactor','Intercambiador T&C','Torre','Horno (proxy)','Drum'];
 const MECS={'Adelgazamiento':'E','Corrosión externa':'E','CUI':'E','Sulfidación':'E','Corrosión nafténica':'E','HIC/SOHIC':'F','SCC':'F','HTHA':'F'};
 const GFF=3.06e-5, ART=[[0,1],[.05,2],[.10,6],[.15,20],[.20,60],[.30,250],[.40,750],[.50,2000],[.65,5000]];
 const SUS={Alta:500,Media:100,Baja:10,Ninguna:1}, CONF={A:.9,B:.7,C:.5,D:.3,E:.1};
-const FFSF={'No requerido':1,'APTO/PASA':.05,'REVISAR':1}, FFSCOST=[0,3000,15000,60000];
+const FFSF={'No requerido':1,'APTO/PASA':.05,'APTO CON LIMITACIONES':.30,'REVISAR':1}, FFSCOST=[0,3000,15000,60000];
 const PCUT=[2,20,100,1000], CCUT=[1e4,1e5,1e6,1e7], DFREP=[1,6,45,316,2000], FCREP=[5e3,3.16e4,3.16e5,3.16e6,3.16e7];
 const LEV=[[1,1,1,2,2],[1,1,2,2,3],[1,2,2,3,3],[2,2,3,3,4],[2,3,3,4,4]]; // filas P1..P5, cols A..E (paper Fig.5)
 const LETRAS='ABCDE', NY=16;
 const FCDEF={carga:0,cacmd:60,cainj:60,rep:4000,rho:0.1,vsl:10000,aff:0.25,dias:3,env:20000,mit:0.10};
 const EX=[
- {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:0,fr:'',fad:'',cre:0,tbi:4,rbi:6,ppar:2.5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
-const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,mar:8};
+ {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,tmin:8.03,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,tmin:50,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,tmin:12,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,tmin:5,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:1,fr:'Apto con limitaciones',fad:'Pasa',cre:20000,tbi:4,rbi:6,ppar:2.5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,tmin:10,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,tmin:15,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,tmin:6,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
+const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,mar:8,sens:1};
 let S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};
 try{const s=localStorage.getItem('rbi_grb_v2');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;S.g={...G0,...S.g};S.fcd={...FCDEF,...S.fcd};}}}catch(e){}
 const save=()=>{try{localStorage.setItem('rbi_grb_v2',JSON.stringify(S))}catch(e){}};
@@ -161,11 +171,11 @@ function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prodDia=d.carga>0?g.c
 const catP=df=>1+PCUT.filter(x=>df>x).length, catC=fc=>CCUT.filter(x=>fc>x).length;
 function calc(e,g){
  const fms=fmsOf(g), fc=e.fc==='CALC'?fcCalc(S.fcd,g).dpn:+e.fc;
- const age=g.anio-e.ai, art=e.t>0?e.cr*age/e.t:0;
+ const age=g.anio-e.ai, art=e.t>0?e.cr*g.sens*age/e.t:0;const tmin=(e.tmin===''||e.tmin==null||isNaN(+e.tmin))?null:+e.tmin;const rul=(tmin!=null&&e.cr>0)?(e.t-tmin)/(e.cr*g.sens)-age:null;
  const dfs=MECS[e.mec]==='F'?(SUS[e.sus]??1):ART.filter(a=>art>=a[0]).pop()[1];
  const df0=e.dfu!==''&&e.dfu!=null&&!isNaN(+e.dfu)?+e.dfu:dfs;
  const pof0=GFF*df0*fms, rq0=pof0*fc;
- const fl=+e.fl||0, ffs=fl===0?'No requerido':(e.fr==='Apto'&&e.fad==='Pasa'?'APTO/PASA':(e.fr==='No apto'?'NO APTO/REPARAR':'REVISAR'));
+ const fl=+e.fl||0, ffs=fl===0?'No requerido':(e.fr==='Apto'&&e.fad==='Pasa'?'APTO/PASA':(e.fr==='Apto con limitaciones'&&e.fad==='Pasa'?'APTO CON LIMITACIONES':(e.fr==='No apto'?'NO APTO/REPARAR':'REVISAR')));
  const df1=ffs==='NO APTO/REPARAR'?1:Math.max(1,df0*(1-CONF[e.ef])*FFSF[ffs]);
  const pof1=GFF*df1*fms, rq1=pof1*fc;
  const p0c=catP(df0),c0c=catC(fc),p1c=catP(df1),c1c=catC(fc);
@@ -174,23 +184,24 @@ function calc(e,g){
  const rr0=GFF*fms*DFREP[p0-1]*FCREP[c0], rr1=GFF*fms*DFREP[p1-1]*FCREP[c1];
  const ru0=g.base==='RAM'?rr0:rq0, ru1=g.base==='RAM'?rr1:rq1, rr=ru0-ru1;
  const rrp=rr*(+e.fcp||0), rro=rr-rrp;
- const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*dif:0, ahp=isFinite(dif)?e.ppar*dif:0, ah=rr+ahi+ahp;
- const i0=e.ci+FFSCOST[fl]+(ffs==='NO APTO/REPARAR'?(+e.cre||0):0)+g.impl;
+ const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*dif:0, ahp=isFinite(dif)?e.ppar*dif:0,cta=e.tbi>0?(e.ci+e.ppar)/e.tbi:0,cra=e.rbi>0?(e.ci+e.ppar)/e.rbi:0, ah=rr+ahi+ahp;
+ const i0=e.ci+FFSCOST[fl]+((ffs==='NO APTO/REPARAR'||ffs==='APTO CON LIMITACIONES')?(+e.cre||0):0)+g.impl;
  const fa=e.r===0?g.N:(1-Math.pow(1+e.r,-g.N))/e.r, vpa=ah*fa, sir=i0>0?vpa/i0:0, van=vpa-i0;
  const roi=i0>0?(g.N*ah-i0)/i0:0, pb=ah>0?i0/ah:Infinity;
  const pbd=ah<=0?Infinity:(e.r===0?i0/ah:(1-i0*e.r/ah>0?-Math.log(1-i0*e.r/ah)/Math.log(1+e.r):Infinity));
  const bna=ah-i0/fa;
  const cum=[...Array(NY)].map((_,t)=>-i0+(e.r===0?ah*Math.min(t,g.N):ah*(1-Math.pow(1+e.r,-Math.min(t,g.N)))/e.r));
- return{fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
+ const alr=rul!=null&&rul<0?(ffs.startsWith('APTO')?'RUL<0 con FFS apto: verificar':'RUL<0'):'';
+ return{rul,cta,cra,alr,fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
   nv0:LEV[p0-1][c0],nv1:LEV[p1-1][c1],conc:(e.p0==='auto'||(p0===p0c&&c0===c0c))&&(e.p1==='auto'||(p1===p1c&&c1===c1c)),ok:sir>1}}
 
 // ---------- UI ----------
 const FIELDS=[['Identificación'],['tag','Tag','text'],['pl','Planta','text'],['tipo','Tipo de equipo',TIPOS],['flu','Fluido','text'],
- ['Condiciones y daño'],['P','P (bar)','n'],['T','T (°C)','n'],['t','Espesor medido (mm)','n'],['cr','Tasa corrosión (mm/año)','n'],['ai','Año última inspección','n'],
+ ['Condiciones y daño'],['P','P (bar)','n'],['T','T (°C)','n'],['t','Espesor medido (mm)','n'],['cr','Tasa corrosión (mm/año)','n'],['tmin','t mín. requerido (mm, opcional)','n'],['ai','Año última inspección','n'],
  ['mec','Mecanismo de daño',Object.keys(MECS)],['sus','Susceptibilidad (fisuración)',['Alta','Media','Baja','Ninguna']],['dfu','DF inicial (opcional, del cálculo previo)','n'],
  ['Consecuencia y costos'],['fc','FC (USD)','fc'],['fcp','% del FC por producción','n'],['ci','Costo inspección (USD)','n'],['r','Tasa de descuento','n'],
  ['tbi','Intervalo TBI (años)','n'],['rbi','Intervalo RBI (años)','n'],['ppar','Pérdida producción por parada (USD)','n'],
- ['Inspección y FFS'],['ef','Efectividad inspección',['A','B','C','D','E']],['fl','Nivel FFS',['0','1','2','3']],['fr','FFS: resultado',['','Apto','No apto']],['fad','FAD',['','Pasa','No pasa']],['cre','Costo reparación/reemplazo (USD)','n'],
+ ['Inspección y FFS'],['ef','Efectividad inspección',['A','B','C','D','E']],['fl','Nivel FFS',['0','1','2','3']],['fr','FFS: resultado',['','Apto','Apto con limitaciones','No apto']],['fad','FAD',['','Pasa','No pasa']],['cre','Costo reparación/reemplazo o limitaciones (USD)','n'],
  ['RAM (auto = categoría calculada)'],['p0','P inicial',['auto','1','2','3','4','5']],['c0','C inicial',['auto',...LETRAS]],['p1','P posterior',['auto','1','2','3','4','5']],['c1','C posterior',['auto',...LETRAS]]];
 function buildForm(){
  const f=$('form');f.innerHTML='';
@@ -202,7 +213,7 @@ function buildForm(){
   el.id='f_'+k;if(t==='text'||(Array.isArray(t)&&['tipo'].includes(k)))lab.classList.add('full');if(k==='mec'||k==='tag')lab.classList.remove('full');
   lab.appendChild(el);f.appendChild(lab);
   el.addEventListener('input',()=>{const e=S.rows[S.sel];if(!e)return;let v=el.value;
-   if(t==='n'||t==='fc'){ if(t==='fc'&&v.trim().toUpperCase()==='CALC'){e[k]='CALC'} else if(k==='dfu'&&v.trim()===''){e[k]=''} else {const n=parseFloat(v.replace(',','.'));if(!isNaN(n)){e[k]=(k==='r'&&n>1)?n/100:n}}}
+   if(t==='n'||t==='fc'){ if((k==='dfu'||k==='tmin')&&v.trim()===''){e[k]=''} else if(t==='fc'&&v.trim().toUpperCase()==='CALC'){e[k]='CALC'} else if(k==='dfu'&&v.trim()===''){e[k]=''} else {const n=parseFloat(v.replace(',','.'));if(!isNaN(n)){e[k]=(k==='r'&&n>1)?n/100:n}}}
    else if(k==='fl')e[k]=+v; else e[k]=v; save();render(false)});
  });
 }
@@ -252,7 +263,7 @@ function render(full=true){
  const sirAvg=cs.length?cs.reduce((a,z)=>a+z.c.sir,0)/cs.length:0,sirAgg=I0>0?VPA/I0:0,roi=I0>0?(g.N*AH-I0)/I0:0,pb=AH>0?I0/AH:Infinity;
  const rAvg=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:0;const pbd=AH>0&&1-I0*rAvg/AH>0?-Math.log(1-I0*rAvg/AH)/Math.log(1+rAvg):Infinity;
  const K=[['Riesgo inicial agregado',usd(R0),'USD/año',1],['Riesgo residual',usd(R1),'USD/año'],['Reducción total',usd(RR),R0>0?fmt(100*RR/R0,1)+' % del inicial':'USD/año',1],['SIR promedio',fmt(sirAvg,2),'agregado '+fmt(sirAgg,2)+' (>1 acepta)',1],
-  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA']];
+  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA'],['Inspección TBI → RBI',usd(sum('cta')-sum('cra'))+'/año','TBI '+usd(sum('cta'))+' · RBI '+usd(sum('cra'))],['Alertas de consistencia',cs.filter(z=>z.c.alr).length,'RUL<0: '+(cs.filter(z=>z.c.alr).map(z=>z.e.tag).join(', ')||'ninguna')]];
  $('kpis').innerHTML=K.map(k=>`<div class="kpi${k[3]?' hl':''}"><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
  // tabla
  const tb=$('tbl');tb.innerHTML=`<thead><tr><th>Tag</th><th>RAM ini→post</th><th>FFS</th><th class="num">Riesgo ini</th><th class="num">Residual</th><th class="num">RR</th><th class="num">SIR</th><th class="num">VAN</th><th>Decisión</th></tr></thead><tbody>${cs.map(z=>{const c=z.c;
@@ -264,7 +275,7 @@ function render(full=true){
   ['Edad = año − última inspección',`${g.anio} − ${e.ai}`,c.age+' años'],['Art = CR·edad/t (Ec. 3)',`${e.cr}·${c.age}/${e.t}`,fmt(c.art,3)],
   ['DF inicial (Ec. 4)',e.dfu!==''?'ingresado por usuario':(MECS[e.mec]==='F'?'susceptibilidad '+e.sus:'tabla Art→DF'),fmt(c.df0,1)],
   ['POF inicial (Ec. 1)',`${sci(GFF)}·${fmt(c.df0,1)}·${c.fms.toFixed(3)}`,sci(c.pof0)+' /año'],['FC (Ec. 6)',e.fc==='CALC'?'de la calculadora (DPN)':'ingresado',usd(c.fc)],
-  ['Riesgo inicial (Ec. 8)','POF·FC',usd(c.rq0)+'/año'],['Estado FFS',`nivel ${e.fl}, ${e.fr||'—'}, FAD ${e.fad||'—'}`,c.ffs],
+  ['Riesgo inicial (Ec. 8)','POF·FC',usd(c.rq0)+'/año'],['RUL = (t−t_mín)/CR − edad','solo si hay t_mín',c.rul==null?'n/d':fmt(c.rul,1)+' años'+(c.alr?' ⚠':'')],['Estado FFS',`nivel ${e.fl}, ${e.fr||'—'}, FAD ${e.fad||'—'}`,c.ffs],
   ['DF posterior (Ec. 5)',`máx(1, ${fmt(c.df0,1)}·${fmt(1-CONF[e.ef],2)}·f_FFS)`,fmt(c.df1,2)],['Riesgo posterior','POF·FC',usd(c.rq1)+'/año'],
   ['Categorías RAM',`calculada ${c.p0c}${LETRAS[c.c0c]} → ${c.p1c}${LETRAS[c.c1c]}`,`${c.p0}${LETRAS[c.c0]} → ${c.p1}${LETRAS[c.c1]}`],
   ['Reducción de riesgo (Ec. 9)',`producción ${usd(c.rrp)} · otras ${usd(c.rro)}`,usd(c.rr)+'/año'],
@@ -278,13 +289,20 @@ function render(full=true){
  $('annual').innerHTML=`<tbody>${pr('Equipos evaluados / con SIR>1',cs.length+' / '+cs.filter(z=>z.c.ok).length)}${pr('Beneficio por reducción de riesgo',usd(RR)+'/año',1)}
   ${pr('&nbsp;&nbsp;de la cual producción',usd(sum('rrp')))}${pr('&nbsp;&nbsp;de la cual otras consecuencias',usd(sum('rro')))}
   ${pr('Ahorro por diferimiento: menor inspección',usd(AHI)+'/año')}${pr('Ahorro por diferimiento: menor pérdida de producción',usd(AHP)+'/año')}
-  ${pr('Ahorro anual total',usd(AH)+'/año',1)}${pr('Costo total de inspecciones y reparaciones (I0)',usd(I0))}${pr('VP ahorros',usd(VPA))}${pr('Beneficio neto anual',usd(BNA)+'/año',1)}${pr('VAN total',usd(VAN),1)}${pr('Equipos por encima del objetivo (después)',cs.filter(z=>z.c.nv1>g.obj).length)}</tbody>`;
+  ${pr('Ahorro anual total',usd(AH)+'/año',1)}${pr('Costo total de inspecciones y reparaciones (I0)',usd(I0))}${pr('VP ahorros',usd(VPA))}${pr('Beneficio neto anual',usd(BNA)+'/año',1)}${pr('VAN total',usd(VAN),1)}${pr('Costo anual de inspección TBI / RBI',usd(sum('cta'))+' / '+usd(sum('cra')))}${pr('Equipos por encima del objetivo (después)',cs.filter(z=>z.c.nv1>g.obj).length)}</tbody>`;
  const tot=[...Array(NY)].map((_,t)=>cs.reduce((a,z)=>a+z.c.cum[t],0));
  const yb=tot.findIndex((v,i)=>i>0&&v>=0&&tot[i-1]<0);let mark=null,markT='';
  if(yb>0){mark=yb-1+(-tot[yb-1])/(tot[yb]-tot[yb-1]);markT=fmt(mark,1)+' a'}
  lineChart('dcf',[{y:tot,c:'var(--ser1)'}],[...Array(NY).keys()],{mark,markT});
  barChart('bars',cs.map(z=>({n:z.e.tag,a:z.c.ru0,b:z.c.ru1})));
  const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod',`días·${fmt(fo.prodDia)} USD/día`,usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE = exposición de vidas (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
+
+ const rs=['Total'];const wr=[.06,.08,.10,.12,.15,.20];
+ $('wacc').innerHTML=`<thead><tr><th>WACC</th><th class="num">FA</th><th class="num">VP ahorros</th><th class="num">VAN</th><th class="num">SIR</th></tr></thead><tbody>${wr.map(r=>{const fa=(1-Math.pow(1+r,-g.N))/r,vp=AH*fa;return`<tr><td>${fmt(r*100,0)} %</td><td class="num">${fmt(fa,3)}</td><td class="num">${usd(vp)}</td><td class="num">${usd(vp-I0)}</td><td class="num">${fmt(I0>0?vp/I0:0,2)}</td></tr>`}).join('')}</tbody>`;
+ const sirs=wr.map(r=>I0>0?AH*(1-Math.pow(1+r,-g.N))/r/I0:0);
+ lineChart('waccChart',[{y:sirs,c:'var(--ser1)'},{y:wr.map(()=>1),c:'var(--bad)'}],wr.map(r=>fmt(r*100,0)+'%'));
+ const pls=[...new Set(cs.map(z=>z.e.pl))];
+ $('plantas').innerHTML=`<thead><tr><th>Planta</th><th class="num">Equipos</th><th class="num">Riesgo ini</th><th class="num">Residual</th><th class="num">Ahorro anual</th><th class="num">Inversión</th><th class="num">SIR</th></tr></thead><tbody>${pls.map(pn=>{const g2=cs.filter(z=>z.e.pl===pn),sm=k=>g2.reduce((a,z)=>a+z.c[k],0);return`<tr><td>${pn}</td><td class="num">${g2.length}</td><td class="num">${usd(sm('ru0'))}</td><td class="num">${usd(sm('ru1'))}</td><td class="num">${usd(sm('ah'))}</td><td class="num">${usd(sm('i0'))}</td><td class="num">${fmt(sm('i0')>0?sm('vpa')/sm('i0'):0,2)}</td></tr>`}).join('')}</tbody>`;
  if(full)fillForm();
 }
 
@@ -301,15 +319,47 @@ function validacion(){
 const EQS=['(1) POF = GFF · DF · FMS  [paper Ec. 1]','(2) FMS = 10^(1 − 0,02·score/10)','(3) Art = CR · edad / t  [paper Ec. 4]','(4) DF_ini = DF del usuario, o T2(Art) / T3(susceptibilidad)','(5) DF_post = máx[1; DF_ini·(1 − confianza A–E)·f_FFS]; No apto ⇒ reparar ⇒ DF = 1','(6) FC = FCcmd + FCaffa + FCprod + FCinj + FCenviron  [paper Ec. 13]','(7) FCinj = CA_inj·ρ·VSL; LSE = POF·CA_inj·ρ; DPN = FC·(1 − f_mit)','(8) Riesgo = POF · FC','(9) RR = Riesgo_inicial − Riesgo_posterior','(10) AD = (C_insp + L_parada)·(1/T_TBI − 1/T_RBI)','(11) I0 = C_insp + C_FFS + C_reparación + C_implantación','(12) A = RR + AD; FA = [1 − (1+r)^−N]/r; SIR = A·FA / I0 (aceptable si > 1); VAN = A·FA − I0; ROI = (N·A − I0)/I0; recuperación = I0/A; descontada = −ln(1 − I0·r/A)/ln(1+r)'];
 $('eqs').innerHTML=EQS.map(t=>`<div class="mono" style="background:var(--soft);padding:6px 10px;border-radius:5px;font-size:13px">${t}</div>`).join('');
 
+
+const FLOW=[['1 · Alcance (ISO 15663 paso 1)','Unidades, equipos, horizonte N, tasa, objetivo de riesgo (API 581 P.1).'],
+ ['2 · Datos (ISO 14224 / ISO 15663 paso 2)','Tag, tipo, fluido, P, T, espesor, CR, año de inspección, mecanismo (sulfidación, nafténica, adelgazamiento, CUI…), fallas, costos.'],
+ ['3 · Riesgo inicial (API 581 P.2 y P.3)','POF = GFF·DF·FMS; FC = ΣFC; Riesgo = POF·FC; posición inicial en RAM 5×5.'],
+ ['4 · ¿Riesgo > objetivo? (P.1)','Sí → paso 5. No → TBI/RBI de rutina y reevaluar (evergreening).'],
+ ['5 · Inspección/NDE (PCC-3, API 581 efectividad A–E)','Elegir técnica por mecanismo; incluir opción no intrusiva (sin parada) si aplica; DF posterior con la efectividad.'],
+ ['6 · FFS (API 579-1/FFS-1)','Nivel 1 cribado · Nivel 2 evaluación detallada · Nivel 3 análisis avanzado. Resultado: APTO / APTO CON LIMITACIONES / NO APTO (FAD pasa / no pasa) y RUL.'],
+ ['7 · Recalcular','Apto: DF·f_FFS y nueva POF. Con limitaciones: crédito parcial + costo de limitación. No apto: reparar/reemplazar (costo en I0) y DF = 1.'],
+ ['8 · Modelación económica (ISO 15663 paso 3)','RR, AD (menor inspección y menor pérdida de producción), I0, VP, SIR, VAN, ROI, recuperación, sensibilidad WACC y CR.'],
+ ['9 · Reporte y decisión (ISO 15663 paso 4, ISO 55010)','Priorizar por SIR y objetivo de riesgo; SIR<1 con riesgo alto se decide por seguridad.'],
+ ['10 · Reevaluar','Nuevos espesores y CR tras cada inspección; volver al paso 3 el año siguiente.']];
+$('flow').innerHTML=FLOW.map((f,i)=>`<div style="display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:10px;align-items:start"><div class="mono" style="background:var(--soft);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:8px 10px;font-weight:500">${f[0]}</div><div style="padding:8px 0">${f[1]}</div></div>${i<FLOW.length-1?'<div class="note" style="padding-left:12px">↓</div>':''}`).join('');
+const TRZ=[['POF = GFF·DF·FMS','API RP 581 (2016) vía [P]','P.2; [P §2.2 Ec.1]','GFF 1/año; DF y FMS adimensionales','Componentes presurizados','PAPER'],
+['FMS = 10^(−0,02·pscore+1), pscore = score/10 (%)','API 581 P.2 Anexo 2.A (score citado en [P §2.3])','Anexo 2.A — fórmula recordada, verificar','score 0–1000; pscore %','Todo el sistema de gestión','NORMA (verificar)'],
+['GFF total 3,06E-05 /año recipientes','API 581 P.2 Tabla 3.1 (recordado)','Tabla 3.1 — verificar','1/año','Recipientes, columnas, intercambiadores','NORMA (verificar)'],
+['Art = CR·edad/t_rd','[P §2.2 Ec.4]','[P] Ec.4','Art adim.; CR mm/año; edad años; t mm','Adelgazamiento, corrosión externa, CUI','PAPER'],
+['FS=(YS+TS)/2·E·1,1; SRP=P·D/(α·FS·t_rd), α=2 cilindro','[P §2.2 Ec.5–6]','[P] Ec.5–6 (no implementadas)','MPa; α adim.','Fracción de resistencia','PAPER'],
+['Df = Σ[Pop_i·Φ(−β_i)]/1,56E-04','[P §2.2 Ec.7–8]','[P] Ec.7–8 (bayesiano; no implementado)','Pop, β adim.','Adelgazamiento con inspección','PAPER'],
+['DF = T2(Art) / T3(susceptibilidad)','—','—','DF adim.','Sustituto del DF completo','MODELO / SUPUESTO'],
+['Confianza A–E: 80–100, 60–80, 40–60, 20–40, <20 %','[P Tabla 1]','[P] Tabla 1','%','Efectividad de inspección','PAPER'],
+['DF_post = máx[1; DF·(1−conf_medio)·f_FFS]','—','conf medio = punto medio Tabla 1','adim.','Actualización simplificada tras inspección/FFS','MODELO'],
+['FC = FCcmd+FCaffa+FCprod+FCinj+FCenviron','[P §2.2 Ec.13]','[P] Ec.13; áreas Ec.9–12','USD','Consecuencia financiera','PAPER'],
+['4.000 USD/m²; 40.000 USD/día; 10.000 USD/persona; 0,1 pers/m²; 210 USD/activo','[P §2.3]','[P] §2.3','USD/m², USD/día, USD/persona, pers/m²','Planta petroquímica de España','PAPER'],
+['FCinj = CA_inj·ρ·VSL; LSE = POF·CA_inj·ρ; DPN = FC·(1−f_mit)','—','—','USD; personas/año; USD','Definiciones propuestas','MODELO'],
+['Riesgo = POF·FC; RR = R0 − R1','[P §2.2]; API 581 P.1','P.1','USD/año','—','PAPER / MODELO'],
+['AD = (C_insp+L_parada)·(1/T_TBI−1/T_RBI)','Datos [P Tablas 4–5, 9–10]','—','USD/año; T años','Ahorro por diferimiento','MODELO'],
+['SIR = VP ahorros / VP inversión; VAN; ROI; recuperación','Ingeniería económica; ISO 15663; ISO 55010','—','USD; años','Aceptable si SIR>1','MODELO'],
+['Categorías RAM y umbrales DF/FC','API 581 P.1 (Tablas 4.1/4.2 según usuario)','verificar; colores [P Fig.5]','DF; USD','Matriz 5×5','NORMA (verificar) / PAPER'],
+['FFS Niveles 1–3, FAD','API 579-1/ASME FFS-1 (ed. 2016 o 2021, verificar)','No calculado: entrada del usuario','—','Pérdida de espesor, fisuras','NORMA'],
+['RUL = (t−t_mín)/CR − edad','—','—','años','Adelgazamiento','MODELO'],
+['Weibull F(t)=1−exp[−(t/η)^β]','ISO 14224 (datos)','No implementado','años','Complemento con datos de falla','MODELO complementario']];
+$('trz').innerHTML=`<thead><tr><th>Fórmula</th><th>Norma / edición</th><th>Parte / sección / tabla</th><th>Variables y unidades</th><th>Dominio</th><th>Origen</th></tr></thead><tbody>${TRZ.map(r=>`<tr>${r.map((c,i)=>`<td style="white-space:normal;min-width:${i===0?200:110}px">${i===5?`<span class="pill">${c}</span>`:c}</td>`).join('')}</tr>`).join('')}</tbody>`;
 // ---------- eventos ----------
-[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod'],['cap','g_cap'],['mar','g_mar']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
-$('g_base').value=S.g.base;$('g_base').onchange=e=>{S.g.base=e.target.value;save();render(false)};
+[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod'],['cap','g_cap'],['mar','g_mar'],['sens','g_sens']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
+$('g_sens').value=S.g.sens;$('g_base').value=S.g.base;$('g_base').onchange=e=>{S.g.base=e.target.value;save();render(false)};
 $('g_obj').value=S.g.obj;$('g_obj').onchange=e=>{S.g.obj=+e.target.value;save();render(false)};
 $('btnReset').onclick=()=>{S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};save();location.reload()};
 $('btnAdd').onclick=()=>{S.rows.push({...JSON.parse(JSON.stringify(EX[5])),tag:'NUEVO-'+(S.rows.length+1),pl:'Planta'});S.sel=S.rows.length-1;save();fillForm();render()};
 $('btnDel').onclick=()=>{if(S.rows.length<=1)return;S.rows.splice(S.sel,1);S.sel=Math.max(0,S.sel-1);save();render()};
 $('btnUseFC').onclick=()=>{S.rows[S.sel].fc='CALC';save();fillForm();render()};
-const tabs={tabA:'viewA',tabB:'viewB',tabC:'viewC'};
+const tabs={tabA:'viewA',tabB:'viewB',tabD:'viewD',tabC:'viewC'};
 Object.keys(tabs).forEach(t=>$(t).onclick=()=>{Object.keys(tabs).forEach(u=>{$(u).setAttribute('aria-selected',u===t);$(tabs[u]).hidden=u!==t})});
 buildForm();buildFC();validacion();render();
 </script>
