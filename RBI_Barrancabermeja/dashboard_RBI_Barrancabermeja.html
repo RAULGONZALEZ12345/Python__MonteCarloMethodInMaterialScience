@@ -92,6 +92,10 @@ details summary{cursor:pointer;font-weight:600}
 
 <div class="kpis" id="kpis"></div>
 
+<div class="panel"><h2 style="margin-bottom:6px">Lógica financiera: escenario BASE vs escenario RBI/FFS</h2>
+ <p class="note" style="margin:0 0 8px">Tres planos que no se mezclan: <b>riesgo técnico</b> (POF, COF; API 581 y paper), <b>beneficio económico esperado</b> (EMV = POF × COF, probabilístico, no es caja) y <b>flujo de caja real</b> (ahorros y costos efectivos). ΔEMV = EMV₀ − EMV₁; el COF no cambia con la inspección ni el FFS (COF₁ = COF₀), cambia la POF. Sin doble conteo: ΔEMV producción es la pérdida por <i>falla</i>; el downtime evitado es la pérdida por <i>paradas planificadas de inspección</i>.</p>
+ <div class="tw"><table id="fin"></table></div></div>
+
 <div class="grid2">
  <div class="panel">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h2>Equipo</h2><span><button id="btnAdd" class="pri">+ Nuevo</button> <button id="btnDel">Eliminar</button></span></div>
@@ -111,8 +115,11 @@ details summary{cursor:pointer;font-weight:600}
 
 <div class="split">
  <div class="panel"><h2 style="margin-bottom:8px">Resumen anual</h2><div class="tw"><table id="annual"></table></div></div>
- <div class="panel"><h2 style="margin-bottom:4px">Flujo neto descontado acumulado (USD)</h2><svg id="dcf" viewBox="0 0 520 260" role="img" aria-label="Flujo neto descontado acumulado"></svg></div>
+ <div class="panel"><h2 style="margin-bottom:4px">Flujo neto descontado acumulado (USD)</h2><svg id="dcf" viewBox="0 0 520 260" role="img" aria-label="Flujo neto descontado acumulado"></svg><div class="legend"><span><i style="background:var(--ser1)"></i>Esperado (con ΔEMV)</span><span><i style="background:var(--ser2)"></i>Caja real (sin ΔEMV)</span></div></div>
 </div>
+<div class="panel"><h2 style="margin-bottom:8px">Escenarios bajo / base / alto</h2>
+ <p class="note" style="margin:0 0 6px">Multiplicadores relativos al estado actual (supuestos financieros, editables). Dependen del barril: precio, margen neto y downtime (ΔEMV producción y downtime evitado). No dependen: inspección, reparación, FFS, OPEX. Lucro cesante = barriles × margen neto (no el precio bruto); aquí margen = precio × margen %, simplificación propia.</p>
+ <div class="tw"><table id="scenIn"></table></div><div class="tw" style="margin-top:8px"><table id="scenOut"></table></div></div>
 <div class="split">
  <div class="panel"><h2 style="margin-bottom:8px">Sensibilidad: precio, margen, downtime, inspección, reparación</h2><div class="tw" style="max-height:330px;overflow:auto"><table id="sens1"></table></div><p class="note">Multiplicadores sobre el estado actual (portafolio). Precio, margen y downtime entran como producto: mismo efecto matemático.</p></div>
  <div class="panel"><h2 style="margin-bottom:8px">Aprobar o rechazar el FFS (valor presente)</h2><div class="tw"><table id="ffsv"></table></div><p class="note">Aprobar = inspección + FFS; rechazar = solo inspección. Valor = riesgo evitado descontado − costo FFS − limitaciones. No incluye seguridad, cumplimiento ni operar equipo no apto; “n/a” si no hay FFS, es No apto (reparación obligatoria) o hay que revisar.</p></div>
@@ -167,13 +174,13 @@ const LEV=[[1,1,1,2,2],[1,1,2,2,3],[1,2,2,3,3],[2,2,3,3,4],[2,3,3,4,4]]; // fila
 const LETRAS='ABCDE', NY=16;
 const FCDEF={carga:0,cacmd:60,cainj:60,rep:4000,rho:0.1,vsl:10000,aff:0.25,dias:3,env:20000,mit:0.10};
 const EX=[
- {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,tmin:8.03,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,tmin:50,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,tmin:12,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,tmin:5,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:1,fr:'Apto con limitaciones',fad:'Pasa',cre:20000,tbi:4,rbi:6,ppar:2.5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,tmin:10,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,tmin:15,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
- {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,tmin:6,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
+ {pl:'Crudo/Topping',tag:'E-101',tipo:'Intercambiador T&C',flu:'Vapor (caso paper)',P:114,T:120,t:8.3,cr:0.132,tmin:8.03,ai:2004,mec:'Adelgazamiento',sus:'Media',dfu:'',fc:'CALC',fcp:.27,ci:720,r:.10,ef:'A',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:9,rbi:17,ppar:10000,opx:0,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'R-2101',tipo:'Reactor',flu:'H2 + HC',P:65,T:380,t:62,cr:.08,tmin:50,ai:2019,mec:'HTHA',sus:'Media',dfu:'',fc:12e6,fcp:.6,ci:45000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:12,ppar:8e5,opx:3000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'T-1101',tipo:'Torre',flu:'Crudo + H2S',P:2.5,T:340,t:18,cr:.5,tmin:12,ai:2017,mec:'Sulfidación',sus:'Media',dfu:'',fc:6e6,fcp:.5,ci:30000,r:.10,ef:'B',fl:1,fr:'No apto',fad:'No pasa',cre:250000,tbi:6,rbi:8,ppar:4e5,opx:2000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Coquización',tag:'H-2201',tipo:'Horno (proxy)',flu:'Residuo',P:30,T:480,t:7.1,cr:.3,tmin:5,ai:2020,mec:'Sulfidación',sus:'Media',dfu:'',fc:4.5e6,fcp:.55,ci:18000,r:.10,ef:'C',fl:1,fr:'Apto con limitaciones',fad:'Pasa',cre:20000,tbi:4,rbi:6,ppar:2.5e5,opx:0,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,tmin:10,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,opx:1000,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,tmin:15,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,opx:1500,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
+ {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,tmin:6,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,opx:0,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
 const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,precio:80,mpct:10,sens:1,fP:1,fM:1,fD:1,fI:1,fR:1};
 let S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};
 try{const s=localStorage.getItem('rbi_grb_v2');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;S.g={...G0,...S.g};S.fcd={...FCDEF,...S.fcd};}}}catch(e){}
@@ -198,16 +205,17 @@ function calc(e,g){
  const rr0=GFF*fms*DFREP[p0-1]*FCREP[c0], rr1=GFF*fms*DFREP[p1-1]*FCREP[c1];
  const ru0=g.base==='RAM'?rr0:rq0, ru1=g.base==='RAM'?rr1:rq1, rr=ru0-ru1;
  const rrp=rr*fcp_*Kpd/((1-fcp_)+fcp_*Kpd), rro=rr-rrp;
- const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*g.fI*dif:0, ahp=isFinite(dif)?e.ppar*Kpd*dif:0,cta=e.tbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.tbi:0,cra=e.rbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.rbi:0, ah=rr+ahi+ahp;
+ const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*g.fI*dif:0, ahp=isFinite(dif)?e.ppar*Kpd*dif:0,cta=e.tbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.tbi:0,cra=e.rbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.rbi:0,opx=+e.opx||0, ah=rr+ahi+ahp-opx, acj=ahi+ahp-opx;
  const i0ci=e.ci*g.fI,i0fix=FFSCOST[fl]+g.impl,i0rep=(ffs==='NO APTO/REPARAR'||ffs==='APTO CON LIMITACIONES')?(+e.cre||0)*g.fR:0,i0=i0ci+i0fix+i0rep;
  const fa=e.r===0?g.N:(1-Math.pow(1+e.r,-g.N))/e.r, vpa=ah*fa, sir=i0>0?vpa/i0:0, van=vpa-i0;
  const roi=i0>0?(g.N*ah-i0)/i0:0, pb=ah>0?i0/ah:Infinity;
  const pbd=ah<=0?Infinity:(e.r===0?i0/ah:(1-i0*e.r/ah>0?-Math.log(1-i0*e.r/ah)/Math.log(1+e.r):Infinity));
- const bna=ah-i0/fa;const fan=n=>e.r===0?n:(1-Math.pow(1+e.r,-n))/e.r,van1=ah*fan(1)-i0,van10=ah*fan(10)-i0,lcct=(cta+ru0)*fa,lccr=(cra+ru1)*fa+i0;
+ const bna=ah-i0/fa;const fan=n=>e.r===0?n:(1-Math.pow(1+e.r,-n))/e.r,van1=ah*fan(1)-i0,van10=ah*fan(10)-i0,lcct=(cta+ru0)*fa,lccr=(cra+ru1+opx)*fa+i0;
+ const vanc=acj*fa-i0,sirc=i0>0?acj*fa/i0:0,pbcj=acj>0?i0/acj:Infinity,cumc=[...Array(NY)].map((_,t)=>-i0+acj*fan(Math.min(t,g.N)));
  const rins=GFF*fms*Math.max(1,df0*(1-CONF[e.ef]))*fc,vffs=(fl===0||ffs==='NO APTO/REPARAR'||ffs==='REVISAR')?null:(rins-rq1)*fa-FFSCOST[fl]-i0rep;
  const cum=[...Array(NY)].map((_,t)=>-i0+(e.r===0?ah*Math.min(t,g.N):ah*(1-Math.pow(1+e.r,-Math.min(t,g.N)))/e.r));
  const alr=rul!=null&&rul<0?(ffs.startsWith('APTO')?'RUL<0 con FFS apto: verificar':'RUL<0'):'';
- return{van1,van10,lcct,lccr,vffs,i0ci,i0fix,i0rep,rul,cta,cra,alr,fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
+ return{opx,acj,vanc,sirc,pbcj,cumc,van1,van10,lcct,lccr,vffs,i0ci,i0fix,i0rep,rul,cta,cra,alr,fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
   nv0:LEV[p0-1][c0],nv1:LEV[p1-1][c1],conc:(e.p0==='auto'||(p0===p0c&&c0===c0c))&&(e.p1==='auto'||(p1===p1c&&c1===c1c)),ok:sir>1}}
 
 // ---------- UI ----------
@@ -215,7 +223,7 @@ const FIELDS=[['Identificación'],['tag','Tag','text'],['pl','Planta','text'],['
  ['Condiciones y daño'],['P','P (bar)','n'],['T','T (°C)','n'],['t','Espesor medido (mm)','n'],['cr','Tasa corrosión (mm/año)','n'],['tmin','t mín. requerido (mm, opcional)','n'],['ai','Año última inspección','n'],
  ['mec','Mecanismo de daño',Object.keys(MECS)],['sus','Susceptibilidad (fisuración)',['Alta','Media','Baja','Ninguna']],['dfu','DF inicial (opcional, del cálculo previo)','n'],
  ['Consecuencia y costos'],['fc','FC (USD)','fc'],['fcp','% del FC por producción','n'],['ci','Costo inspección (USD)','n'],['r','Tasa de descuento','n'],
- ['tbi','Intervalo TBI (años)','n'],['rbi','Intervalo RBI (años)','n'],['ppar','Pérdida producción por parada (USD)','n'],
+ ['tbi','Intervalo TBI (años)','n'],['rbi','Intervalo RBI (años)','n'],['ppar','Pérdida producción por parada (USD)','n'],['opx','OPEX incremental del programa (USD/año)','n'],
  ['Inspección y FFS'],['ef','Efectividad inspección',['A','B','C','D','E']],['fl','Nivel FFS',['0','1','2','3']],['fr','FFS: resultado',['','Apto','Apto con limitaciones','No apto']],['fad','FAD',['','Pasa','No pasa']],['cre','Costo reparación/reemplazo o limitaciones (USD)','n'],
  ['RAM (auto = categoría calculada)'],['p0','P inicial',['auto','1','2','3','4','5']],['c0','C inicial',['auto',...LETRAS]],['p1','P posterior',['auto','1','2','3','4','5']],['c1','C posterior',['auto',...LETRAS]]];
 function buildForm(){
@@ -276,9 +284,10 @@ function render(full=true){
  const cs=S.rows.map((e,i)=>({e,i,c:calc(e,g)}));const sum=k=>cs.reduce((a,z)=>a+z.c[k],0);
  const R0=sum('ru0'),R1=sum('ru1'),RR=sum('rr'),AHI=sum('ahi'),AHP=sum('ahp'),AH=sum('ah'),I0=sum('i0'),VPA=sum('vpa'),VAN=sum('van'),BNA=sum('bna');
  const sirAvg=cs.length?cs.reduce((a,z)=>a+z.c.sir,0)/cs.length:0,sirAgg=I0>0?VPA/I0:0,roi=I0>0?(g.N*AH-I0)/I0:0,pb=AH>0?I0/AH:Infinity;
- const rAvg=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:0;const pbd=AH>0&&1-I0*rAvg/AH>0?-Math.log(1-I0*rAvg/AH)/Math.log(1+rAvg):Infinity;
+ const rAvg=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:.1;const pbd=AH>0&&1-I0*rAvg/AH>0?-Math.log(1-I0*rAvg/AH)/Math.log(1+rAvg):Infinity;
+ const fA=(1-Math.pow(1+rAvg,-g.N))/rAvg;
  const K=[['Riesgo inicial agregado',usd(R0),'USD/año',1],['Riesgo residual',usd(R1),'USD/año'],['Reducción total',usd(RR),R0>0?fmt(100*RR/R0,1)+' % del inicial':'USD/año',1],['SIR promedio',fmt(sirAvg,2),'agregado '+fmt(sirAgg,2)+' (>1 acepta)',1],
-  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA'],['VAN a 1 año / 10 años',usd(sum('van1'))+' / '+usd(sum('van10')),'LCC TBI '+usd(sum('lcct'))+' · RBI '+usd(sum('lccr'))],['Aprobar FFS vs rechazar',usd(cs.reduce((a,z)=>a+(z.c.vffs||0),0)),'VP; '+cs.filter(z=>z.c.vffs!=null&&z.c.vffs<0).length+' equipos con valor negativo'],['Inspección TBI → RBI',usd(sum('cta')-sum('cra'))+'/año','TBI '+usd(sum('cta'))+' · RBI '+usd(sum('cra'))],['Alertas de consistencia',cs.filter(z=>z.c.alr).length,'RUL<0: '+(cs.filter(z=>z.c.alr).map(z=>z.e.tag).join(', ')||'ninguna')]];
+  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA'],['VAN de caja real (sin ΔEMV)',usd(sum('vanc')),'SIR caja '+fmt(I0>0?sum('acj')*fA/I0:0,2)+' · payback '+(sum('acj')>0?fmt(I0/sum('acj'),1)+' años':'No recupera')],['VAN a 1 año / 10 años',usd(sum('van1'))+' / '+usd(sum('van10')),'LCC TBI '+usd(sum('lcct'))+' · RBI '+usd(sum('lccr'))],['Aprobar FFS vs rechazar',usd(cs.reduce((a,z)=>a+(z.c.vffs||0),0)),'VP; '+cs.filter(z=>z.c.vffs!=null&&z.c.vffs<0).length+' equipos con valor negativo'],['Inspección TBI → RBI',usd(sum('cta')-sum('cra'))+'/año','TBI '+usd(sum('cta'))+' · RBI '+usd(sum('cra'))],['Alertas de consistencia',cs.filter(z=>z.c.alr).length,'RUL<0: '+(cs.filter(z=>z.c.alr).map(z=>z.e.tag).join(', ')||'ninguna')]];
  $('kpis').innerHTML=K.map(k=>`<div class="kpi${k[3]?' hl':''}"><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
  // tabla
  const tb=$('tbl');tb.innerHTML=`<thead><tr><th>Tag</th><th>RAM ini→post</th><th>FFS</th><th class="num">Riesgo ini</th><th class="num">Residual</th><th class="num">RR</th><th class="num">SIR</th><th class="num">VAN</th><th>Decisión</th></tr></thead><tbody>${cs.map(z=>{const c=z.c;
@@ -308,19 +317,49 @@ function render(full=true){
  const tot=[...Array(NY)].map((_,t)=>cs.reduce((a,z)=>a+z.c.cum[t],0));
  const yb=tot.findIndex((v,i)=>i>0&&v>=0&&tot[i-1]<0);let mark=null,markT='';
  if(yb>0){mark=yb-1+(-tot[yb-1])/(tot[yb]-tot[yb-1]);markT=fmt(mark,1)+' a'}
- lineChart('dcf',[{y:tot,c:'var(--ser1)'}],[...Array(NY).keys()],{mark,markT});
+ const totC=[...Array(NY)].map((_,t)=>cs.reduce((a,z)=>a+z.c.cumc[t],0));
+ lineChart('dcf',[{y:tot,c:'var(--ser1)'},{y:totC,c:'var(--ser2)'}],[...Array(NY).keys()],{mark,markT});
  barChart('bars',cs.map(z=>({n:z.e.tag,a:z.c.ru0,b:z.c.ru1})));
  const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod',`días·${fmt(fo.prodDia)} USD/día`,usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE = exposición de vidas (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
 
 
  const sum2=k=>cs.reduce((a,z)=>a+z.c[k],0),rA=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:.1,faA=(1-Math.pow(1+rA,-g.N))/rA;
- const rows1=[];[['Precio','P'],['Margen','P'],['Downtime','P'],['Inspección','I'],['Reparación','R']].forEach(([n,k])=>[.5,.75,1,1.25,1.5].forEach(m=>{const A=sum2('rro')+(sum2('rrp')+sum2('ahp'))*(k==='P'?m:1)+sum2('ahi')*(k==='I'?m:1),I=sum2('i0ci')*(k==='I'?m:1)+sum2('i0fix')+sum2('i0rep')*(k==='R'?m:1);rows1.push([n,m,A,I,I>0?A*faA/I:0,A*faA-I])}));
+ const rows1=[];[['Precio','P'],['Margen','P'],['Downtime','P'],['Inspección','I'],['Reparación','R']].forEach(([n,k])=>[.5,.75,1,1.25,1.5].forEach(m=>{const A=sum2('rro')+(sum2('rrp')+sum2('ahp'))*(k==='P'?m:1)+sum2('ahi')*(k==='I'?m:1)-sum2('opx'),I=sum2('i0ci')*(k==='I'?m:1)+sum2('i0fix')+sum2('i0rep')*(k==='R'?m:1);rows1.push([n,m,A,I,I>0?A*faA/I:0,A*faA-I])}));
  $('sens1').innerHTML=`<thead><tr><th>Variable</th><th class="num">×</th><th class="num">A (USD/año)</th><th class="num">I0</th><th class="num">SIR</th><th class="num">VAN</th></tr></thead><tbody>${rows1.map(r=>`<tr${r[1]===1?' style="opacity:.6"':''}><td>${r[0]}</td><td class="num">${fmt(r[1],2)}</td><td class="num">${usd(r[2])}</td><td class="num">${usd(r[3])}</td><td class="num">${fmt(r[4],2)}</td><td class="num">${usd(r[5])}</td></tr>`).join('')}</tbody>`;
  $('ffsv').innerHTML=`<thead><tr><th>Equipo</th><th>Estado FFS</th><th class="num">VP aprobar vs rechazar</th></tr></thead><tbody>${cs.map(z=>`<tr><td>${z.e.tag}</td><td>${z.c.ffs}</td><td class="num ${z.c.vffs!=null?(z.c.vffs<0?'bad':'good'):''}">${z.c.vffs==null?'n/a':usd(z.c.vffs)}</td></tr>`).join('')}</tbody>`;
 
+
+ // ---- lógica financiera
+ const sm=k=>sum2(k),fa2=faA;
+ const fr=(n,tipo,dep,orig,ann,pv,neg)=>`<tr><td>${n}</td><td><span class="pill">${tipo}</span></td><td>${dep}</td><td>${orig}</td><td class="num">${usd(ann)}</td><td class="num">${usd(pv)}</td></tr>`;
+ const inv=sm('i0ci')+sm('i0fix')+sm('i0rep');
+ $('fin').innerHTML=`<thead><tr><th>Concepto</th><th>Plano</th><th>¿Depende del barril?</th><th>Origen</th><th class="num">USD/año (o USD en t=0)</th><th class="num">VP a N años</th></tr></thead><tbody>
+  <tr><td><b>EMV₀ = POF₀ × COF₀</b> (base)</td><td><span class="pill">Técnico→esperado</span></td><td>Parcial (FCprod)</td><td>API 581 / paper Ec.1, 13</td><td class="num">${usd(sm('ru0'))}</td><td class="num">${usd(sm('ru0')*fa2)}</td></tr>
+  <tr><td><b>EMV₁ = POF₁ × COF₁</b> (RBI/FFS)</td><td><span class="pill">Técnico→esperado</span></td><td>Parcial (FCprod)</td><td>API 581 + modelo propio (DF posterior)</td><td class="num">${usd(sm('ru1'))}</td><td class="num">${usd(sm('ru1')*fa2)}</td></tr>
+  ${fr('<b>ΔEMV</b> = EMV₀ − EMV₁ · producción','Esperado','Sí (margen, downtime)','Modelo propio; FCprod: paper §2.3 + supuesto',sm('rrp'),sm('rrp')*fa2)}
+  ${fr('<b>ΔEMV</b> · otras consecuencias (componente, terceros, lesiones, ambiente)','Esperado','No','Paper §2.3 (4.000 USD/m², 10.000 USD/persona, 0,1 pers/m²)',sm('rro'),sm('rro')*fa2)}
+  ${fr('Downtime evitado por diferimiento de inspecciones','Caja real','Sí (margen)','Paper Tablas 4–5, 9–10 + supuesto de margen',sm('ahp'),sm('ahp')*fa2)}
+  ${fr('Ahorro por menor inspección (TBI→RBI)','Caja real','No','Paper Tablas 4–5, 9–10',sm('ahi'),sm('ahi')*fa2)}
+  ${fr('OPEX incremental del programa (−)','Caja real','No','Supuesto',-sm('opx'),-sm('opx')*fa2)}
+  ${fr('Inspección inicial (t=0) (−)','Caja real','No','Paper Tabla 4 / supuesto',-sm('i0ci'),-sm('i0ci'))}
+  ${fr('FFS + implantación RBI (t=0) (−)','Caja real','No','210 USD: paper §2.3; FFS: supuesto',-sm('i0fix'),-sm('i0fix'))}
+  ${fr('Reparación / reemplazo / limitaciones (t=0) (−)','Caja real','No','Supuesto del usuario',-sm('i0rep'),-sm('i0rep'))}
+  <tr style="border-top:2px solid var(--ink)"><td><b>Flujo esperado A</b> = ΔEMV + ahorros − OPEX · <b>VAN esperado</b></td><td><span class="pill">Esperado</span></td><td></td><td></td><td class="num">${usd(sm('ah'))}</td><td class="num"><b>${usd(sm('van'))}</b></td></tr>
+  <tr><td><b>Flujo de caja real</b> = ahorros − OPEX · <b>VAN de caja real</b> (sin ΔEMV)</td><td><span class="pill">Caja real</span></td><td></td><td></td><td class="num">${usd(sm('acj'))}</td><td class="num"><b>${usd(sm('vanc'))}</b></td></tr>
+  <tr><td>VAN 1 año / 10 años (esperado) · SIR · ROI · payback</td><td></td><td></td><td></td><td class="num" colspan="2">${usd(sm('van1'))} / ${usd(sm('van10'))} · SIR ${fmt(I0>0?sm('vpa')/I0:0,2)} · ROI ${fmt(100*roi,0)} % · payback ${isFinite(pb)?fmt(pb,1)+' a':'—'}</td></tr></tbody>`;
+ // ---- escenarios
+ if(!S.scen)S.scen={P:[.75,1,1.25],M:[.75,1,1.25],D:[.75,1,1.5],I:[.85,1,1.25],R:[.85,1,1.5]};
+ const SN={P:'Precio del barril',M:'Margen neto',D:'Downtime',I:'Costo de inspección',R:'Costo de reparación'};
+ $('scenIn').innerHTML=`<thead><tr><th>Variable</th><th>Bajo</th><th>Base</th><th>Alto</th></tr></thead><tbody>${Object.keys(SN).map(k=>`<tr><td>${SN[k]}</td>${[0,1,2].map(i=>`<td><input id="sc_${k}${i}" type="text" inputmode="decimal" value="${S.scen[k][i]}" style="width:70px"></td>`).join('')}</tr>`).join('')}</tbody>`;
+ Object.keys(SN).forEach(k=>[0,1,2].forEach(i=>{const el=$('sc_'+k+i);el.oninput=()=>{const n=parseFloat(el.value.replace(',','.'));if(!isNaN(n)){S.scen[k][i]=n;save();renderScen()}}}));
+ window.renderScen=()=>{const R=rA=>rA;const sc=(lab,kP,kM,kD,kI,kR)=>{const kpd=kP*kM*kD,Ac=sm('ahp')*kpd+sm('ahi')*kI-sm('opx'),Ae=Ac+sm('rro')+sm('rrp')*kpd,I=sm('i0ci')*kI+sm('i0fix')+sm('i0rep')*kR;return`<tr><td>${lab}</td><td class="num">${fmt(I>0?Ae*faA/I:0,2)}</td><td class="num">${usd(Ae*faA-I)}</td><td class="num">${fmt(I>0?Ac*faA/I:0,2)}</td><td class="num">${usd(Ac*faA-I)}</td></tr>`};
+  const rows=[];Object.keys(SN).forEach(k=>['bajo','base','alto'].forEach((ln,i)=>{const kk={P:1,M:1,D:1,I:1,R:1};kk[k]=S.scen[k][i];rows.push(sc(SN[k]+': '+ln,kk.P,kk.M,kk.D,kk.I,kk.R))}));
+  const q=S.scen;rows.push(sc('<b>COMBINADO beneficio bajo</b> (precio, margen, downtime bajos; inspección, reparación altas)',q.P[0],q.M[0],q.D[0],q.I[2],q.R[2]));rows.push(sc('<b>COMBINADO beneficio alto</b> (precio, margen, downtime altos; inspección, reparación bajas)',q.P[2],q.M[2],q.D[2],q.I[0],q.R[0]));
+  $('scenOut').innerHTML=`<thead><tr><th>Escenario</th><th class="num">SIR esperado</th><th class="num">VAN esperado</th><th class="num">SIR caja real</th><th class="num">VAN caja real</th></tr></thead><tbody>${rows.join('')}</tbody>`};
+ renderScen();
  const REL={A:1,B:600/720,C:480/720,D:.5};
  const ndeRows=['A','B','C','D'].map(x=>{let rq1=0,ciA=0;S.rows.forEach(e=>{const c1=calc({...e,ef:x},g);rq1+=c1.rq1;const cur=calc(e,g);ciA+=REL[e.ef]?e.ci*g.fI/REL[e.ef]:0});
-  const RRe=sum2('rq0')-rq1,A=sum2('ahi')+sum2('ahp')+RRe,I=ciA*REL[x]+sum2('i0fix')+sum2('i0rep');return[x,rq1,RRe,A,I,I>0?A*faA/I:0,A*faA-I]});
+  const RRe=sum2('rq0')-rq1,A=sum2('ahi')+sum2('ahp')-sum2('opx')+RRe,I=ciA*REL[x]+sum2('i0fix')+sum2('i0rep');return[x,rq1,RRe,A,I,I>0?A*faA/I:0,A*faA-I]});
  $('nde').innerHTML=`<thead><tr><th>Efect.</th><th class="num">Residual</th><th class="num">Reducción</th><th class="num">A</th><th class="num">I0</th><th class="num">SIR</th><th class="num">VAN</th></tr></thead><tbody>${ndeRows.map(r=>`<tr><td><b>${r[0]}</b></td><td class="num">${usd(r[1])}</td><td class="num">${usd(r[2])}</td><td class="num">${usd(r[3])}</td><td class="num">${usd(r[4])}</td><td class="num">${fmt(r[5],2)}</td><td class="num">${usd(r[6])}</td></tr>`).join('')}</tbody>`;
  const creS=S.rows.reduce((a,e)=>a+(+e.cre||0),0),ruls=cs.map(z=>z.c.rul).filter(v=>v!=null),rmin=ruls.length?Math.min(...ruls):null;
  $('ext').innerHTML=`<thead><tr><th class="num">ΔRUL (años)</th><th class="num">Reemplazo diferido</th><th class="num">VAN con extensión</th></tr></thead><tbody>${[0,2,5,10].map(d=>{const v=creS*(1-Math.pow(1+rA,-d));return`<tr><td class="num">${d}</td><td class="num">${usd(v)}</td><td class="num">${usd(VAN+v)}</td></tr>`}).join('')}</tbody><tfoot><tr><td colspan="3">RUL mínimo actual: ${rmin==null?'n/d':fmt(rmin,1)+' años'} · costos de reparación/reemplazo cargados: ${usd(creS)}</td></tr></tfoot>`;
