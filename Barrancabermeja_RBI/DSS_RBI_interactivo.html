@@ -1,0 +1,154 @@
+<title>Tablero RBI Barrancabermeja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Concepto: hoja de datos de integridad. Columna de lectura estrecha, tablas de riesgo como protagonista, acento naranja de tubería solo en riesgo. */
+:root{--bg:#eef1f4;--surface:#ffffff;--ink:#16212b;--mute:#5a6977;--line:#cfd6dd;--steel:#1f4e79;--risk:#c4500a;--ok:#2f7d4f;--warn:#b7791f;--bad:#b42318;--soft:#e3e9ef;
+--fd:"Barlow Condensed","Arial Narrow",sans-serif;--fb:"IBM Plex Sans",system-ui,sans-serif;--fm:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161d;--surface:#17212b;--ink:#e6ecf1;--mute:#93a3b2;--line:#2b3947;--steel:#6fb0ea;--risk:#ff8a47;--ok:#58c184;--warn:#e0b04f;--bad:#ff7a6b;--soft:#1e2b37;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f161d;--surface:#17212b;--ink:#e6ecf1;--mute:#93a3b2;--line:#2b3947;--steel:#6fb0ea;--risk:#ff8a47;--ok:#58c184;--warn:#e0b04f;--bad:#ff7a6b;--soft:#1e2b37;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--fb);padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font:700 clamp(30px,6vw,46px)/1 var(--fd);letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font:600 22px/1.1 var(--fd);letter-spacing:.04em;text-transform:uppercase;margin:0 0 10px;color:var(--steel)}
+.sub{color:var(--mute);margin:6px 0 0;max-width:68ch}
+.banner{border-left:4px solid var(--bad);background:var(--surface);padding:10px 14px;font-size:13.5px}
+section{background:var(--surface);border:1px solid var(--line);padding:16px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+label b{font:500 14px var(--fm);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--steel)}input[type=number],select{font:14px var(--fm);padding:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.kpi{background:var(--surface);padding:10px 12px}.kpi small{display:block;color:var(--mute);font-size:12px}.kpi span{font:500 20px var(--fm);font-variant-numeric:tabular-nums}
+.neg{color:var(--bad)}.pos{color:var(--ok)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th{font:600 12px var(--fb);text-transform:uppercase;letter-spacing:.05em;color:var(--mute);text-align:left;border-bottom:2px solid var(--ink);padding:6px 8px;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);font-family:var(--fm);white-space:nowrap}td.t{font-family:var(--fb);white-space:normal}
+.pill{display:inline-block;min-width:34px;text-align:center;padding:1px 7px;font:600 12px var(--fm);border:1px solid currentColor}
+.B{color:var(--ok)}.M{color:var(--warn)}.MA{color:var(--risk)}.A{color:var(--bad)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--mute);font:11px var(--fm)}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-weight:600}details p{margin:6px 0 0;font-size:14px}
+.tag{font:500 11px var(--fm);border:1px solid var(--line);padding:1px 6px;color:var(--mute)}
+button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);background:var(--steel);color:var(--bg);cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--risk);outline-offset:2px}
+</style>
+<div class="wrap">
+<header><h1>Tablero RBI Barrancabermeja</h1>
+<p class="sub">Del riesgo técnico al beneficio económico esperado y al flujo de caja. Método de Oropallo et al. (2024) extendido con VAN, SIR, ROI y payback. <a href="https://doi.org/10.1016/j.ssci.2024.106570" style="color:var(--steel)">DOI 10.1016/j.ssci.2024.106570</a></p></header>
+<div class="banner"><b>Cifras ilustrativas.</b> U-200 y V-220 usan supuestos para que el modelo corra; no son datos de Ecopetrol. Las normas API/ASME/ISO no estaban disponibles, así que la ubicación exacta de cada ecuación queda pendiente. Lo verificado es lo que cita el PDF de Oropallo.</div>
+
+<section><h2>Supuestos que puede mover</h2>
+<div class="grid">
+<label>Tasa de descuento <b id="v_r"></b><input id="r" type="range" min="0.04" max="0.18" step="0.005" value="0.10"></label>
+<label>Precio del crudo (factor) <b id="v_price"></b><input id="price" type="range" min="0.7" max="1.3" step="0.05" value="1"></label>
+<label>Margen de refinación (factor) <b id="v_margin"></b><input id="margin" type="range" min="0.6" max="1.4" step="0.05" value="1"></label>
+<label>Downtime (factor) <b id="v_down"></b><input id="down" type="range" min="0.5" max="1.5" step="0.05" value="1"></label>
+<label>Costo de inspección (factor) <b id="v_insp"></b><input id="insp" type="range" min="0.8" max="1.3" step="0.05" value="1"></label>
+<label>Reparación y reemplazo (factor) <b id="v_rep"></b><input id="rep" type="range" min="0.8" max="1.4" step="0.05" value="1"></label>
+<label>Puntos del sistema de gestión (FMS) <b id="v_fms"></b><input id="fms" type="range" min="300" max="900" step="25" value="700"></label>
+<label>Risk target<select id="tgt"><option value="B">Bajo</option><option value="M" selected>Medio</option><option value="MA">Medio-alto</option></select></label>
+</div><p class="note"><button id="reset">Restablecer base</button></p></section>
+
+<section><h2>Indicadores</h2><div class="kpis" id="kpis"></div>
+<p class="note">VAN del beneficio económico esperado = flujo de caja + riesgo evitado esperado. El riesgo evitado es valor esperado, no caja; se muestra aparte.</p></section>
+
+<section><h2>Ranking de riesgo</h2>
+<label style="max-width:320px">Año evaluado <b id="v_y"></b><input id="yr" type="range" min="2026" max="2036" step="1" value="2026"></label>
+<div class="tw"><table id="rank"></table></div>
+<p class="note">Matriz 5×5 provisional (suma de índices: ≤5 bajo, 6 medio, 7 medio-alto, ≥8 alto), coherente con dos datos del paper: 1C queda por debajo del target medio y 3C es el límite (Fig. 5). Sustituir por la matriz corporativa.</p></section>
+
+<section><h2>Flujo anual descontado</h2><div id="ch1"></div><p class="note">Barras: riesgo evitado esperado (naranja) y flujo de caja incremental (azul). Línea: VP neto acumulado. Un valor negativo de riesgo significa riesgo adicional aceptado al diferir.</p></section>
+<section><h2>Sensibilidad del VAN a 10 años</h2><div id="ch2"></div></section>
+
+<section><h2>Oropallo: lo que se verificó</h2><div class="tw"><table>
+<tr><th>Estrategia</th><th>Intrusivo impreso</th><th>Intrusivo recalculado</th><th>No intrusivo impreso</th><th>No intrusivo recalculado</th><th>Estado</th></tr>
+<tr><td class="t">RBI-1</td><td>11.650</td><td>11.650</td><td>1.080</td><td>2.010</td><td class="t"><span class="tag">discrepancia</span></td></tr>
+<tr><td class="t">RBI-2</td><td>1.170</td><td>1.410</td><td>1.170</td><td>1.410</td><td class="t"><span class="tag">discrepancia</span></td></tr>
+<tr><td class="t">RBI-3</td><td>1.770</td><td>1.770</td><td>1.770</td><td>1.770</td><td class="t"><span class="tag">coincide</span></td></tr>
+<tr><td class="t">RBI-4</td><td>1.410</td><td>1.410</td><td>1.410</td><td>1.410</td><td class="t"><span class="tag">coincide</span></td></tr>
+<tr><td class="t">TBI</td><td>43.360</td><td>43.360</td><td>3.840</td><td>3.840</td><td class="t"><span class="tag">coincide</span></td></tr></table></div>
+<p class="note">Con los totales corregidos, RBI-2 y RBI-4 empatan en 1.410 $ en ambos modos; la mejor estrategia que afirma el paper (2 intrusiva, 1 no intrusiva) no se sostiene. La ventaja de RBI sobre TBI sí. El paper no descuenta ni calcula VAN, SIR, ROI ni payback. La tasa de corrosión suma 0,202 mm/a, no 0,132.</p></section>
+
+<section><h2>Respuestas breves</h2>
+<details><summary>¿Qué es α en la Eq. 6 (la "2.16")?</summary><p>Factor de forma del componente en SR_P = P·D/(α·FS·t_rd); vale 2 para cilindro (Oropallo p.5). El número "2.16" es de la Parte 2 de API 581 y no pude verificarlo. Además, la Eq. 6 habla de diámetro externo y la Tabla 2 da el interno.</p></details>
+<details><summary>¿Cómo actualiza una NDE el Df?</summary><p>Con tres estados de daño y la efectividad A–E (Tabla 1), las probabilidades a priori pasan a posteriores; con A_rt y SR_P se calcula β de cada estado y Df = ΣPo·Φ(−β)/1,56·10⁻⁴ (Eq. 7). Reduce incertidumbre; no repara el daño.</p></details>
+<details><summary>¿Qué significa GFF en un riesgo 1C?</summary><p>Con Df≈1, POF ≈ gff·FMS: el riesgo es el piso genérico, sin daño activo. Casi no hay riesgo evitado que cobrar; el beneficio de RBI es inspeccionar menos y sin paro.</p></details>
+<details><summary>¿Cómo aplicar FFS Nivel 3 a V-220?</summary><p>Mapear espesores, pasar Niveles 1 y 2 de API 579-1, y si no pasan, análisis elasto-plástico 3D con factor de resistencia remanente. Salidas: presión admisible, vida remanente, intervalo. En el flujo entra como costo de FFS, reparación diferida y paro evitado, sin contar dos veces el mismo riesgo.</p></details>
+<details><summary>¿Qué cambió con el Addendum sobre CA?</summary><p>No pude leer el texto. Fuentes públicas indican que se eliminó el límite de 10.000 ft² en el área de consecuencia de los niveles 1 y 2. Sin asignación verificada a una adenda concreta.</p></details>
+<p class="note">ASME PCC-3 planifica inspección por riesgo; la reparación es ASME PCC-2. Detalle completo de 22 respuestas en el Excel de una hoja.</p></section>
+</div>
+<script>
+
+const D={"base": 2026, "ny": 11, "G": {"r": 0.1, "price": 70.0, "margin": 8.0, "fms_score": 700, "risk_target": "M"}, "low": {"price": 0.7, "margin": 0.6, "down": 0.5, "insp": 0.8, "rep": 0.8}, "high": {"price": 1.3, "margin": 1.4, "down": 1.5, "insp": 1.3, "rep": 1.4}, "eq": {"U-200": {"gff": 0.000765, "df_init": 40, "cap": 1000, "thr": 40000, "dt_unpl_days": 15, "repl": 1500000.0, "inv_bbl": 20000, "fc_affa": 2000000.0, "fc_inj": 500000.0, "fc_env": 800000.0, "dens": "Agregado de 25 componentes equivalentes (supuesto)"}, "V-220": {"gff": 3.06e-05, "df_init": 120, "cap": 1000, "thr": 15000, "dt_unpl_days": 10, "repl": 600000.0, "inv_bbl": 5000, "fc_affa": 400000.0, "fc_inj": 300000.0, "fc_env": 200000.0, "dens": "Recipiente individual"}}, "pl": {"U-200": {"0": [{"g": 0.15, "fac": 1.0, "reset": null, "insp": 25000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa TBI (c/3 a)"}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 0.6, "reset": null, "insp": 175000, "dth": 120, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa + interna TBI (9 a) con paro"}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 25000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa TBI (c/3 a)"}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 25000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa TBI (c/3 a)"}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}], "1": [{"g": 0.15, "fac": 1.0, "reset": null, "insp": 60000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": "Implementaci\u00f3n RBI/evergreening"}, {"g": 0.15, "fac": 0.5, "reset": null, "insp": 90000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": "NDE en operaci\u00f3n (PAUT/ondas guiadas), efectividad B"}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.15, "fac": 1.0, "reset": 25, "insp": 0.0, "dth": 48, "ffs": 0.0, "rep": 250000, "opex": 15000, "act": "Reparaci\u00f3n local dirigida (criterio PCC-2) con paro 48 h"}, {"g": 0.08, "fac": 0.6, "reset": null, "insp": 90000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": "NDE en operaci\u00f3n 2.\u00aa campa\u00f1a"}, {"g": 0.08, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.08, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.08, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.08, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}, {"g": 0.08, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 15000, "act": ""}]}, "V-220": {"0": [{"g": 0.2, "fac": 1.0, "reset": null, "insp": 8000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa TBI"}, {"g": 0.2, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.2, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.2, "fac": 1.0, "reset": 1.0, "insp": 0.0, "dth": 720, "ffs": 0.0, "rep": 1800000.0, "opex": 0.0, "act": "Reemplazo programado por tiempo (TBI), paro 30 d"}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 8000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": "Inspecci\u00f3n externa TBI"}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 0.0, "act": ""}], "1": [{"g": 0.2, "fac": 0.8, "reset": null, "insp": 65000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": "RBI + PAUT mapeo de espesores"}, {"g": 0.2, "fac": 0.5, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 180000, "rep": 0.0, "opex": 10000, "act": "FFS API 579 Nivel 3 (FEA elasto-pl\u00e1stico)"}, {"g": 0.06, "fac": 1.0, "reset": 8, "insp": 0.0, "dth": 96, "ffs": 0.0, "rep": 450000, "opex": 10000, "act": "Reparaci\u00f3n/refuerzo local (PCC-2) con paro 96 h"}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 0.6, "reset": null, "insp": 40000, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": "NDE de seguimiento (PAUT)"}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}, {"g": 0.06, "fac": 1.0, "reset": null, "insp": 0.0, "dth": 0.0, "ffs": 0.0, "rep": 0.0, "opex": 10000, "act": ""}]}}};
+const fmsf=s=>Math.pow(10,-0.02*(s/10)+1);
+const pcat=d=>d<=2?1:d<=10?2:d<=30?3:d<=100?4:5;
+const ccat=c=>c<=1e4?'A':c<=1e5?'B':c<=1e6?'C':c<=1e7?'D':'E';
+const lvl=(p,c)=>{const s=p+'ABCDE'.indexOf(c)+1;return s<=5?'B':s==6?'M':s==7?'MA':'A'};
+function run(G,f,r){
+ const F=fmsf(G.fms_score),rows=[];
+ for(const e in D.eq){const d=D.eq[e],prev=[null,null];
+  for(let i=0;i<D.ny;i++){
+   const pvd=d.thr*G.margin*f.margin;
+   const fc={cmd:d.repl*f.rep+d.inv_bbl*G.price*f.price,affa:d.fc_affa,prod:d.dt_unpl_days*f.down*pvd,inj:d.fc_inj,env:d.fc_env};
+   const cof=Object.values(fc).reduce((a,b)=>a+b,0);const row={eq:e,year:D.base+i,t:i,fc,cof,ccat:ccat(cof)};
+   for(const p of [0,1]){const pp=D.pl[e][p][i];let df=i==0?d.df_init*pp.fac:prev[p]*(1+pp.g)*pp.fac;
+    if(pp.reset!==null)df=pp.reset;df=Math.min(df,d.cap);prev[p]=df;
+    const pof=d.gff*df*F;row[p]={df,pof,emv:pof*cof,insp:pp.insp*f.insp,ffs:pp.ffs*f.rep,rep:pp.rep*f.rep,dt:pp.dth/24*pvd*f.down,opex:pp.opex,pcat:pcat(df),level:lvl(pcat(df),ccat(cof))};}
+   row.demv=row[0].emv-row[1].emv;const sh=(cof-fc.inj)/cof;row.demv_cash=row.demv*sh;row.demv_inj=row.demv-row.demv_cash;rows.push(row);}}
+ const ann=[];
+ for(let i=0;i<D.ny;i++){const rs=rows.filter(x=>x.t==i);const a={year:D.base+i,t:i,df:1/Math.pow(1+r,i)};
+  a.risk=rs.reduce((s,x)=>s+x.demv_cash,0);
+  for(const k of ['insp','dt','ffs','rep','opex'])a[k]=rs.reduce((s,x)=>s+x[0][k]-x[1][k],0);
+  a.cash=a.insp+a.dt+a.ffs+a.rep+a.opex;a.bee=a.cash+a.risk;
+  const comps=[a.risk,a.insp,a.dt,a.ffs,a.rep,a.opex];a.gb=comps.filter(c=>c>0).reduce((s,c)=>s+c,0);a.gc=-comps.filter(c=>c<0).reduce((s,c)=>s+c,0);ann.push(a);}
+ const npv=(k,n)=>ann.filter(a=>a.t<=n).reduce((s,a)=>s+a[k]*a.df,0);
+ let cum=0;const cums=ann.map(a=>(cum+=a.bee*a.df));let pb=null;
+ for(let i=0;i<ann.length;i++){if(Math.min(...cums.slice(i))>=0){pb=ann[i].year;break}}
+ const m={};for(const n of [1,10]){const pvb=npv('gb',n),pvc=npv('gc',n);m[n]={bee:npv('bee',n),cash:npv('cash',n),risk:npv('risk',n),pvb,pvc,sir:pvc?pvb/pvc:null,roi:pvc?(pvb-pvc)/pvc:null}}
+ m.pb=pb;return {rows,ann,m,cums};}
+
+const $=id=>document.getElementById(id);const nf=new Intl.NumberFormat('es-CO',{maximumFractionDigits:0});
+const fm=x=>(x<0?'−':'')+'$'+nf.format(Math.abs(x));
+const ids=['r','price','margin','down','insp','rep','fms'];
+function state(){const f={price:+$('price').value,margin:+$('margin').value,down:+$('down').value,insp:+$('insp').value,rep:+$('rep').value};return {f,r:+$('r').value,G:Object.assign({},D.G,{fms_score:+$('fms').value})}}
+const ORD=['B','M','MA','A'];
+function render(){const s=state();
+ $('v_r').textContent=(s.r*100).toFixed(1)+' %';for(const k of ['price','margin','down','insp','rep'])$('v_'+k).textContent='×'+s.f[k].toFixed(2);
+ $('v_fms').textContent=s.G.fms_score+' pts · FMS '+fmsf(s.G.fms_score).toFixed(3);
+ const R=run(s.G,s.f,s.r),m=R.m;
+ const cls=x=>x<0?'neg':'pos';
+ const K=[['VAN 1 año (beneficio esperado)',fm(m[1].bee),cls(m[1].bee)],['VAN 10 años (beneficio esperado)',fm(m[10].bee),cls(m[10].bee)],['VAN 10 años solo caja',fm(m[10].cash),cls(m[10].cash)],['VAN 10 años riesgo evitado',fm(m[10].risk),cls(m[10].risk)],['SIR 10 años',m[10].sir.toFixed(2),''],['ROI 10 años',(m[10].roi*100).toFixed(0)+' %',''],['Payback descontado',m.pb||'no recupera','']];
+ $('kpis').innerHTML=K.map(k=>`<div class="kpi"><small>${k[0]}</small><span class="${k[2]}">${k[1]}</span></div>`).join('');
+ // ranking
+ const y=+$('yr').value;$('v_y').textContent=y;const t=$('tgt').value;
+ const rs=R.rows.filter(x=>x.year==y).sort((a,b)=>b[0].emv-a[0].emv);
+ const ok=l=>ORD.indexOf(l)<=ORD.indexOf(t)?'<span class="B">cumple</span>':'<span class="A">excede</span>';
+ $('rank').innerHTML='<tr><th>#</th><th>Equipo</th><th>PoF cat. antes→después</th><th>CoF</th><th>Nivel antes</th><th>Nivel después</th><th>EMV antes $/a</th><th>EMV después $/a</th><th>ΔEMV $/a</th><th>Target</th></tr>'+rs.map((x,i)=>`<tr><td>${i+1}</td><td class="t"><b>${x.eq}</b></td><td>${x[0].pcat} → ${x[1].pcat}</td><td>${x.ccat}</td><td><span class="pill ${x[0].level}">${x[0].level}</span></td><td><span class="pill ${x[1].level}">${x[1].level}</span></td><td>${nf.format(x[0].emv)}</td><td>${nf.format(x[1].emv)}</td><td class="${x.demv<0?'neg':''}">${nf.format(x.demv)}</td><td class="t">${ok(x[1].level)}</td></tr>`).join('');
+ // chart 1
+ const W=760,H=300,L=56,Rm=10,T=14,B=30,n=R.ann.length;const vals=R.ann.flatMap(a=>[a.risk+Math.max(a.cash,0),Math.min(a.cash,0)+Math.min(a.risk,0),R.cums[a.t]]);
+ let hi=Math.max(...vals,0),lo=Math.min(...vals,0);const pad=(hi-lo)*.06;hi+=pad;lo-=pad;
+ const sy=v=>T+(hi-v)/(hi-lo)*(H-T-B),bw=(W-L-Rm)/n;let g='';
+ const tk=5;for(let i=0;i<=tk;i++){const v=lo+(hi-lo)*i/tk;g+=`<line x1="${L}" x2="${W-Rm}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--line)"/><text x="${L-6}" y="${sy(v)+4}" text-anchor="end">${(v/1e6).toFixed(1)}M</text>`}
+ g+=`<line x1="${L}" x2="${W-Rm}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--ink)"/>`;
+ R.ann.forEach((a,i)=>{const x=L+i*bw+bw*.18,w=bw*.64;
+  const bar=(v0,v1,c)=>`<rect x="${x}" y="${Math.min(sy(v0),sy(v1))}" width="${w}" height="${Math.max(1,Math.abs(sy(v0)-sy(v1)))}" fill="${c}"/>`;
+  const posC=Math.max(a.cash,0),negC=Math.min(a.cash,0);g+=bar(0,a.cash,'var(--steel)');
+  g+=a.risk>=0?bar(posC,posC+a.risk,'var(--risk)'):bar(negC,negC+a.risk,'var(--risk)');
+  g+=`<text x="${x+w/2}" y="${H-10}" text-anchor="middle">${a.year}</text>`});
+ g+='<polyline fill="none" stroke="var(--ink)" stroke-width="2" points="'+R.ann.map((a,i)=>`${L+i*bw+bw/2},${sy(R.cums[i])}`).join(' ')+'"/>';
+ R.ann.forEach((a,i)=>{g+=`<circle cx="${L+i*bw+bw/2}" cy="${sy(R.cums[i])}" r="3" fill="var(--ink)"/>`});
+ $('ch1').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Flujo anual">${g}</svg>`;
+ // tornado
+ const base=m[10].bee;const tor=['down','margin','rep','price','insp'].map(k=>{const a=Object.assign({},s.f),b=Object.assign({},s.f);a[k]=D.low[k];b[k]=D.high[k];return [k,run(s.G,a,s.r).m[10].bee,run(s.G,b,s.r).m[10].bee]}).sort((p,q)=>Math.abs(q[2]-q[1])-Math.abs(p[2]-p[1]));
+ const nm={price:'Precio crudo',margin:'Margen',down:'Downtime',insp:'Inspección',rep:'Reparación'};
+ const all=tor.flatMap(t=>[t[1],t[2]]).concat(base);let l2=Math.min(...all),h2=Math.max(...all);const p2=(h2-l2)*.08;l2-=p2;h2+=p2;
+ const W2=760,rh=34,H2=tor.length*rh+34,L2=110,sx=v=>L2+(v-l2)/(h2-l2)*(W2-L2-16);let g2='';
+ for(let i=0;i<=4;i++){const v=l2+(h2-l2)*i/4;g2+=`<line x1="${sx(v)}" x2="${sx(v)}" y1="0" y2="${H2-22}" stroke="var(--line)"/><text x="${sx(v)}" y="${H2-6}" text-anchor="middle">${(v/1e6).toFixed(1)}M</text>`}
+ tor.forEach((t,i)=>{const y0=i*rh+6;g2+=`<text x="${L2-8}" y="${y0+15}" text-anchor="end">${nm[t[0]]}</text><rect x="${Math.min(sx(t[1]),sx(t[2]))}" y="${y0}" width="${Math.max(2,Math.abs(sx(t[2])-sx(t[1])))}" height="20" fill="var(--risk)"/>`});
+ g2+=`<line x1="${sx(base)}" x2="${sx(base)}" y1="0" y2="${H2-22}" stroke="var(--ink)" stroke-width="2"/>`;
+ $('ch2').innerHTML=`<svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Tornado">${g2}</svg><p class="note">Cada barra va del factor bajo al alto de una palanca, con las demás en su valor actual. Línea: VAN actual (${fm(base)}).</p>`;
+}
+for(const i of [...ids,'yr','tgt'])$(i).addEventListener('input',render);
+$('reset').addEventListener('click',()=>{const d={r:.10,price:1,margin:1,down:1,insp:1,rep:1,fms:700};for(const k in d)$(k).value=d[k];render()});
+render();
+</script>
