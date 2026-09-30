@@ -79,8 +79,14 @@ details summary{cursor:pointer;font-weight:600}
  <label>Implantación RBI (USD)<input id="g_impl" type="number" style="width:90px"></label>
  <label>Producción paper (USD/día)<input id="g_prod" type="number" style="width:100px"></label>
  <label>Capacidad GRB (bpd)<input id="g_cap" type="number" style="width:100px"></label>
- <label>Margen (USD/bbl, supuesto)<input id="g_mar" type="number" style="width:90px"></label>
- <label>Sensibilidad CR (×)<input id="g_sens" type="number" step="0.05" style="width:80px"></label>
+ <label>Precio barril (USD, supuesto)<input id="g_precio" type="number" style="width:90px"></label>
+ <label>Margen (% del precio, supuesto)<input id="g_mpct" type="number" style="width:90px"></label>
+ <label>CR / CUI (×)<input id="g_sens" type="number" step="0.05" style="width:70px"></label>
+ <label>Precio (×)<input id="g_fP" type="number" step="0.05" style="width:70px"></label>
+ <label>Margen (×)<input id="g_fM" type="number" step="0.05" style="width:70px"></label>
+ <label>Downtime (×)<input id="g_fD" type="number" step="0.05" style="width:70px"></label>
+ <label>Inspección (×)<input id="g_fI" type="number" step="0.05" style="width:70px"></label>
+ <label>Reparación (×)<input id="g_fR" type="number" step="0.05" style="width:70px"></label>
  <button id="btnReset">Restaurar ejemplos</button>
 </div></div>
 
@@ -106,6 +112,10 @@ details summary{cursor:pointer;font-weight:600}
 <div class="split">
  <div class="panel"><h2 style="margin-bottom:8px">Resumen anual</h2><div class="tw"><table id="annual"></table></div></div>
  <div class="panel"><h2 style="margin-bottom:4px">Flujo neto descontado acumulado (USD)</h2><svg id="dcf" viewBox="0 0 520 260" role="img" aria-label="Flujo neto descontado acumulado"></svg></div>
+</div>
+<div class="split">
+ <div class="panel"><h2 style="margin-bottom:8px">Sensibilidad: precio, margen, downtime, inspección, reparación</h2><div class="tw" style="max-height:330px;overflow:auto"><table id="sens1"></table></div><p class="note">Multiplicadores sobre el estado actual (portafolio). Precio, margen y downtime entran como producto: mismo efecto matemático.</p></div>
+ <div class="panel"><h2 style="margin-bottom:8px">Aprobar o rechazar el FFS (valor presente)</h2><div class="tw"><table id="ffsv"></table></div><p class="note">Aprobar = inspección + FFS; rechazar = solo inspección. Valor = riesgo evitado descontado − costo FFS − limitaciones. No incluye seguridad, cumplimiento ni operar equipo no apto; “n/a” si no hay FFS, es No apto (reparación obligatoria) o hay que revisar.</p></div>
 </div>
 <div class="split">
  <div class="panel"><h2 style="margin-bottom:4px">Sensibilidad a la tasa de descuento (WACC)</h2><div class="tw"><table id="wacc"></table></div><svg id="waccChart" viewBox="0 0 520 200" role="img" aria-label="SIR vs WACC"></svg><p class="note">Misma tasa para todos los equipos; sensibilidad de CR con el campo “Sensibilidad CR (×)” de arriba (1 = base).</p></div>
@@ -160,17 +170,17 @@ const EX=[
  {pl:'Cracking FCC',tag:'D-3301',tipo:'Drum',flu:'Agua ácida',P:8,T:60,t:14,cr:.05,tmin:10,ai:2016,mec:'HIC/SOHIC',sus:'Alta',dfu:'',fc:3e6,fcp:.4,ci:22000,r:.10,ef:'B',fl:2,fr:'Apto',fad:'No pasa',cre:0,tbi:6,rbi:9,ppar:3e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Crudo/Topping',tag:'C-1102',tipo:'Torre',flu:'Residuo atm. (vacío)',P:.1,T:360,t:20,cr:.4,tmin:15,ai:2018,mec:'Corrosión nafténica',sus:'Media',dfu:'',fc:8e6,fcp:.55,ci:28000,r:.10,ef:'B',fl:1,fr:'Apto',fad:'Pasa',cre:0,tbi:6,rbi:10,ppar:5e5,p0:'auto',c0:'auto',p1:'auto',c1:'auto'},
  {pl:'Hidrotratamiento',tag:'E-2105',tipo:'Intercambiador T&C',flu:'HC aislado',P:20,T:150,t:9,cr:.127,tmin:6,ai:2015,mec:'CUI',sus:'Media',dfu:'',fc:9e5,fcp:.3,ci:6000,r:.10,ef:'B',fl:0,fr:'',fad:'',cre:0,tbi:5,rbi:8,ppar:6e4,p0:'auto',c0:'auto',p1:'auto',c1:'auto'}];
-const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,mar:8,sens:1};
+const G0={anio:2026,score:750,N:10,base:'CUANT',obj:2,impl:210,prod:40000,cap:250000,precio:80,mpct:10,sens:1,fP:1,fM:1,fD:1,fI:1,fR:1};
 let S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};
 try{const s=localStorage.getItem('rbi_grb_v2');if(s){const o=JSON.parse(s);if(o&&o.rows&&o.g){S=o;S.g={...G0,...S.g};S.fcd={...FCDEF,...S.fcd};}}}catch(e){}
 const save=()=>{try{localStorage.setItem('rbi_grb_v2',JSON.stringify(S))}catch(e){}};
 
 // ---------- modelo (idéntico al Excel) ----------
 const fmsOf=g=>Math.pow(10,1-0.02*g.score/10);
-function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prodDia=d.carga>0?g.cap*g.mar*d.carga:g.prod,prod=d.dias*prodDia,inj=d.cainj*d.rho*d.vsl,env=d.env,br=cmd+aff+prod+inj+env;return{cmd,aff,prod,prodDia,inj,env,br,dpn:br*(1-d.mit)}}
+function fcCalc(d,g){const cmd=d.cacmd*d.rep,aff=d.aff*cmd,prodDia=d.carga>0?g.cap*(g.precio*g.mpct/100)*d.carga:g.prod,prod=d.dias*prodDia,inj=d.cainj*d.rho*d.vsl,env=d.env,br=cmd+aff+prod+inj+env;return{cmd,aff,prod,prodDia,inj,env,br,dpn:br*(1-d.mit)}}
 const catP=df=>1+PCUT.filter(x=>df>x).length, catC=fc=>CCUT.filter(x=>fc>x).length;
 function calc(e,g){
- const fms=fmsOf(g), fc=e.fc==='CALC'?fcCalc(S.fcd,g).dpn:+e.fc;
+ const fms=fmsOf(g), fc0=e.fc==='CALC'?fcCalc(S.fcd,g).dpn:+e.fc, Kpd=g.fP*g.fM*g.fD, fcp_=+e.fcp||0, fc=fc0*((1-fcp_)+fcp_*Kpd);
  const age=g.anio-e.ai, art=e.t>0?e.cr*g.sens*age/e.t:0;const tmin=(e.tmin===''||e.tmin==null||isNaN(+e.tmin))?null:+e.tmin;const rul=(tmin!=null&&e.cr>0)?(e.t-tmin)/(e.cr*g.sens)-age:null;
  const dfs=MECS[e.mec]==='F'?(SUS[e.sus]??1):ART.filter(a=>art>=a[0]).pop()[1];
  const df0=e.dfu!==''&&e.dfu!=null&&!isNaN(+e.dfu)?+e.dfu:dfs;
@@ -183,16 +193,17 @@ function calc(e,g){
  const p1=e.p1==='auto'?p1c:+e.p1, c1=e.c1==='auto'?c1c:LETRAS.indexOf(e.c1);
  const rr0=GFF*fms*DFREP[p0-1]*FCREP[c0], rr1=GFF*fms*DFREP[p1-1]*FCREP[c1];
  const ru0=g.base==='RAM'?rr0:rq0, ru1=g.base==='RAM'?rr1:rq1, rr=ru0-ru1;
- const rrp=rr*(+e.fcp||0), rro=rr-rrp;
- const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*dif:0, ahp=isFinite(dif)?e.ppar*dif:0,cta=e.tbi>0?(e.ci+e.ppar)/e.tbi:0,cra=e.rbi>0?(e.ci+e.ppar)/e.rbi:0, ah=rr+ahi+ahp;
- const i0=e.ci+FFSCOST[fl]+((ffs==='NO APTO/REPARAR'||ffs==='APTO CON LIMITACIONES')?(+e.cre||0):0)+g.impl;
+ const rrp=rr*fcp_*Kpd/((1-fcp_)+fcp_*Kpd), rro=rr-rrp;
+ const dif=(1/e.tbi-1/e.rbi), ahi=isFinite(dif)?e.ci*g.fI*dif:0, ahp=isFinite(dif)?e.ppar*Kpd*dif:0,cta=e.tbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.tbi:0,cra=e.rbi>0?(e.ci*g.fI+e.ppar*Kpd)/e.rbi:0, ah=rr+ahi+ahp;
+ const i0ci=e.ci*g.fI,i0fix=FFSCOST[fl]+g.impl,i0rep=(ffs==='NO APTO/REPARAR'||ffs==='APTO CON LIMITACIONES')?(+e.cre||0)*g.fR:0,i0=i0ci+i0fix+i0rep;
  const fa=e.r===0?g.N:(1-Math.pow(1+e.r,-g.N))/e.r, vpa=ah*fa, sir=i0>0?vpa/i0:0, van=vpa-i0;
  const roi=i0>0?(g.N*ah-i0)/i0:0, pb=ah>0?i0/ah:Infinity;
  const pbd=ah<=0?Infinity:(e.r===0?i0/ah:(1-i0*e.r/ah>0?-Math.log(1-i0*e.r/ah)/Math.log(1+e.r):Infinity));
- const bna=ah-i0/fa;
+ const bna=ah-i0/fa;const fan=n=>e.r===0?n:(1-Math.pow(1+e.r,-n))/e.r,van1=ah*fan(1)-i0,van10=ah*fan(10)-i0,lcct=(cta+ru0)*fa,lccr=(cra+ru1)*fa+i0;
+ const rins=GFF*fms*Math.max(1,df0*(1-CONF[e.ef]))*fc,vffs=(fl===0||ffs==='NO APTO/REPARAR'||ffs==='REVISAR')?null:(rins-rq1)*fa-FFSCOST[fl]-i0rep;
  const cum=[...Array(NY)].map((_,t)=>-i0+(e.r===0?ah*Math.min(t,g.N):ah*(1-Math.pow(1+e.r,-Math.min(t,g.N)))/e.r));
  const alr=rul!=null&&rul<0?(ffs.startsWith('APTO')?'RUL<0 con FFS apto: verificar':'RUL<0'):'';
- return{rul,cta,cra,alr,fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
+ return{van1,van10,lcct,lccr,vffs,i0ci,i0fix,i0rep,rul,cta,cra,alr,fms,fc,age,art,dfs,df0,pof0,rq0,ffs,df1,pof1,rq1,p0,c0,p1,c1,p0c,c0c,p1c,c1c,rr0,rr1,ru0,ru1,rr,rrp,rro,ahi,ahp,ah,i0,fa,vpa,sir,van,roi,pb,pbd,bna,cum,
   nv0:LEV[p0-1][c0],nv1:LEV[p1-1][c1],conc:(e.p0==='auto'||(p0===p0c&&c0===c0c))&&(e.p1==='auto'||(p1===p1c&&c1===c1c)),ok:sir>1}}
 
 // ---------- UI ----------
@@ -263,7 +274,7 @@ function render(full=true){
  const sirAvg=cs.length?cs.reduce((a,z)=>a+z.c.sir,0)/cs.length:0,sirAgg=I0>0?VPA/I0:0,roi=I0>0?(g.N*AH-I0)/I0:0,pb=AH>0?I0/AH:Infinity;
  const rAvg=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:0;const pbd=AH>0&&1-I0*rAvg/AH>0?-Math.log(1-I0*rAvg/AH)/Math.log(1+rAvg):Infinity;
  const K=[['Riesgo inicial agregado',usd(R0),'USD/año',1],['Riesgo residual',usd(R1),'USD/año'],['Reducción total',usd(RR),R0>0?fmt(100*RR/R0,1)+' % del inicial':'USD/año',1],['SIR promedio',fmt(sirAvg,2),'agregado '+fmt(sirAgg,2)+' (>1 acepta)',1],
-  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA'],['Inspección TBI → RBI',usd(sum('cta')-sum('cra'))+'/año','TBI '+usd(sum('cta'))+' · RBI '+usd(sum('cra'))],['Alertas de consistencia',cs.filter(z=>z.c.alr).length,'RUL<0: '+(cs.filter(z=>z.c.alr).map(z=>z.e.tag).join(', ')||'ninguna')]];
+  ['ROI a '+g.N+' años',fmt(100*roi,0)+' %','sin descontar'],['Recuperación',isFinite(pb)?fmt(pb,1)+' años':'No recupera','descontada '+(isFinite(pbd)?fmt(pbd,1)+' años':'—'),1],['VAN total',usd(VAN),'a '+g.N+' años'],['Beneficio neto anual',usd(BNA),'A − I0/FA'],['VAN a 1 año / 10 años',usd(sum('van1'))+' / '+usd(sum('van10')),'LCC TBI '+usd(sum('lcct'))+' · RBI '+usd(sum('lccr'))],['Aprobar FFS vs rechazar',usd(cs.reduce((a,z)=>a+(z.c.vffs||0),0)),'VP; '+cs.filter(z=>z.c.vffs!=null&&z.c.vffs<0).length+' equipos con valor negativo'],['Inspección TBI → RBI',usd(sum('cta')-sum('cra'))+'/año','TBI '+usd(sum('cta'))+' · RBI '+usd(sum('cra'))],['Alertas de consistencia',cs.filter(z=>z.c.alr).length,'RUL<0: '+(cs.filter(z=>z.c.alr).map(z=>z.e.tag).join(', ')||'ninguna')]];
  $('kpis').innerHTML=K.map(k=>`<div class="kpi${k[3]?' hl':''}"><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join('');
  // tabla
  const tb=$('tbl');tb.innerHTML=`<thead><tr><th>Tag</th><th>RAM ini→post</th><th>FFS</th><th class="num">Riesgo ini</th><th class="num">Residual</th><th class="num">RR</th><th class="num">SIR</th><th class="num">VAN</th><th>Decisión</th></tr></thead><tbody>${cs.map(z=>{const c=z.c;
@@ -297,7 +308,12 @@ function render(full=true){
  barChart('bars',cs.map(z=>({n:z.e.tag,a:z.c.ru0,b:z.c.ru1})));
  const fo=fcCalc(S.fcd,g);$('fcout').innerHTML=[['FCcmd','CA_cmd·reposición',usd(fo.cmd)],['FCaffa','fracción·FCcmd',usd(fo.aff)],['FCprod',`días·${fmt(fo.prodDia)} USD/día`,usd(fo.prod)],['FCinj','CA_inj·ρ·VSL',usd(fo.inj)],['FCenviron','',usd(fo.env)],['FC bruto (Ec. 6)','Σ',usd(fo.br)],['DPN = FC·(1−f_mit)','usado como FC',usd(fo.dpn)],['LSE = exposición de vidas (pers/año)','POF·CA_inj·ρ · equipo sel.',z?sci(z.c.pof0*S.fcd.cainj*S.fcd.rho):'–'],['Categoría de consecuencia','',LETRAS[catC(fo.dpn)]]].map(r=>`<div>${r[0]}</div><div class="note">${r[1]}</div><div>${r[2]}</div>`).join('');
 
- const rs=['Total'];const wr=[.06,.08,.10,.12,.15,.20];
+
+ const sum2=k=>cs.reduce((a,z)=>a+z.c[k],0),rA=cs.length?cs.reduce((a,z)=>a+z.e.r,0)/cs.length:.1,faA=(1-Math.pow(1+rA,-g.N))/rA;
+ const rows1=[];[['Precio','P'],['Margen','P'],['Downtime','P'],['Inspección','I'],['Reparación','R']].forEach(([n,k])=>[.5,.75,1,1.25,1.5].forEach(m=>{const A=sum2('rro')+(sum2('rrp')+sum2('ahp'))*(k==='P'?m:1)+sum2('ahi')*(k==='I'?m:1),I=sum2('i0ci')*(k==='I'?m:1)+sum2('i0fix')+sum2('i0rep')*(k==='R'?m:1);rows1.push([n,m,A,I,I>0?A*faA/I:0,A*faA-I])}));
+ $('sens1').innerHTML=`<thead><tr><th>Variable</th><th class="num">×</th><th class="num">A (USD/año)</th><th class="num">I0</th><th class="num">SIR</th><th class="num">VAN</th></tr></thead><tbody>${rows1.map(r=>`<tr${r[1]===1?' style="opacity:.6"':''}><td>${r[0]}</td><td class="num">${fmt(r[1],2)}</td><td class="num">${usd(r[2])}</td><td class="num">${usd(r[3])}</td><td class="num">${fmt(r[4],2)}</td><td class="num">${usd(r[5])}</td></tr>`).join('')}</tbody>`;
+ $('ffsv').innerHTML=`<thead><tr><th>Equipo</th><th>Estado FFS</th><th class="num">VP aprobar vs rechazar</th></tr></thead><tbody>${cs.map(z=>`<tr><td>${z.e.tag}</td><td>${z.c.ffs}</td><td class="num ${z.c.vffs!=null?(z.c.vffs<0?'bad':'good'):''}">${z.c.vffs==null?'n/a':usd(z.c.vffs)}</td></tr>`).join('')}</tbody>`;
+ const wr=[.06,.08,.10,.12,.15,.20];
  $('wacc').innerHTML=`<thead><tr><th>WACC</th><th class="num">FA</th><th class="num">VP ahorros</th><th class="num">VAN</th><th class="num">SIR</th></tr></thead><tbody>${wr.map(r=>{const fa=(1-Math.pow(1+r,-g.N))/r,vp=AH*fa;return`<tr><td>${fmt(r*100,0)} %</td><td class="num">${fmt(fa,3)}</td><td class="num">${usd(vp)}</td><td class="num">${usd(vp-I0)}</td><td class="num">${fmt(I0>0?vp/I0:0,2)}</td></tr>`}).join('')}</tbody>`;
  const sirs=wr.map(r=>I0>0?AH*(1-Math.pow(1+r,-g.N))/r/I0:0);
  lineChart('waccChart',[{y:sirs,c:'var(--ser1)'},{y:wr.map(()=>1),c:'var(--bad)'}],wr.map(r=>fmt(r*100,0)+'%'));
@@ -352,7 +368,7 @@ const TRZ=[['POF = GFF·DF·FMS','API RP 581 (2016) vía [P]','P.2; [P §2.2 Ec.
 ['Weibull F(t)=1−exp[−(t/η)^β]','ISO 14224 (datos)','No implementado','años','Complemento con datos de falla','MODELO complementario']];
 $('trz').innerHTML=`<thead><tr><th>Fórmula</th><th>Norma / edición</th><th>Parte / sección / tabla</th><th>Variables y unidades</th><th>Dominio</th><th>Origen</th></tr></thead><tbody>${TRZ.map(r=>`<tr>${r.map((c,i)=>`<td style="white-space:normal;min-width:${i===0?200:110}px">${i===5?`<span class="pill">${c}</span>`:c}</td>`).join('')}</tr>`).join('')}</tbody>`;
 // ---------- eventos ----------
-[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod'],['cap','g_cap'],['mar','g_mar'],['sens','g_sens']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
+[['anio','g_anio'],['score','g_score'],['N','g_N'],['impl','g_impl'],['prod','g_prod'],['cap','g_cap'],['precio','g_precio'],['mpct','g_mpct'],['sens','g_sens'],['fP','g_fP'],['fM','g_fM'],['fD','g_fD'],['fI','g_fI'],['fR','g_fR']].forEach(([k,id])=>{const el=$(id);el.value=S.g[k];el.addEventListener('input',()=>{const n=parseFloat(el.value);if(!isNaN(n)&&(k!=='N'||n>0)){S.g[k]=n;save();render(false)}})});
 $('g_sens').value=S.g.sens;$('g_base').value=S.g.base;$('g_base').onchange=e=>{S.g.base=e.target.value;save();render(false)};
 $('g_obj').value=S.g.obj;$('g_obj').onchange=e=>{S.g.obj=+e.target.value;save();render(false)};
 $('btnReset').onclick=()=>{S={g:{...G0},rows:JSON.parse(JSON.stringify(EX)),fcd:{...FCDEF},sel:0};save();location.reload()};
