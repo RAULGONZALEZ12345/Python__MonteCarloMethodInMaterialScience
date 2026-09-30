@@ -25,14 +25,14 @@ input[type=range]{width:100%;accent-color:var(--steel)}input[type=number],select
 th{font:600 12px var(--fb);text-transform:uppercase;letter-spacing:.05em;color:var(--mute);text-align:left;border-bottom:2px solid var(--ink);padding:6px 8px;white-space:nowrap}
 td{padding:6px 8px;border-bottom:1px solid var(--line);font-family:var(--fm);white-space:nowrap}td.t{font-family:var(--fb);white-space:normal}
 .pill{display:inline-block;min-width:34px;text-align:center;padding:1px 7px;font:600 12px var(--fm);border:1px solid currentColor}
-.B{color:var(--ok)}.M{color:var(--warn)}.MA{color:var(--risk)}.A{color:var(--bad)}
+.N{color:var(--ok)}.L{color:var(--ok)}.M{color:var(--warn)}.H{color:var(--risk)}.VH{color:var(--bad)}
 svg{width:100%;height:auto;display:block}svg text{fill:var(--mute);font:11px var(--fm)}
 .note{font-size:13px;color:var(--mute);margin:8px 0 0}
 details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-weight:600}details p{margin:6px 0 0;font-size:14px}
 .tag{font:500 11px var(--fm);border:1px solid var(--line);padding:1px 6px;color:var(--mute)}
 .ramwrap{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px;align-items:start}@media(max-width:700px){.ramwrap{grid-template-columns:1fr}}
 #ram{display:grid;grid-template-columns:22px repeat(5,1fr);gap:2px;font:600 12px var(--fm)}#ram div{min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;color:#16212b}#ram .ax{min-height:0;background:none;color:var(--mute);font-weight:500}
-.cB{background:#bfe5c9}.cM{background:#f3e3a1}.cMA{background:#f3c2a4}.cA{background:#ee9b94}
+.cN{background:#bfe5c9}.cL{background:#dcefd2}.cM{background:#f3e3a1}.cH{background:#f3c2a4}.cVH{background:#ee9b94}
 button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);background:var(--steel);color:var(--bg);cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--risk);outline-offset:2px}
 </style>
 <div class="wrap">
@@ -49,7 +49,7 @@ button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);ba
 <label>Costo de inspección (factor) <b id="v_insp"></b><input id="insp" type="range" min="0.8" max="1.3" step="0.05" value="1"></label>
 <label>Reparación y reemplazo (factor) <b id="v_rep"></b><input id="rep" type="range" min="0.8" max="1.4" step="0.05" value="1"></label>
 <label>Puntos del sistema de gestión (FMS) <b id="v_fms"></b><input id="fms" type="range" min="300" max="900" step="25" value="700"></label>
-<label>Risk target<select id="tgt"><option value="B">Bajo</option><option value="M" selected>Medio</option><option value="MA">Medio-alto</option></select></label>
+<label>Risk target<select id="tgt"><option value="N">N despreciable</option><option value="L">L bajo</option><option value="M" selected>M medio</option><option value="H">H alto</option></select></label>
 </div><p class="note"><button id="reset">Restablecer base</button></p></section>
 
 <section><h2>Indicadores</h2><div class="kpis" id="kpis"></div>
@@ -79,7 +79,17 @@ button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);ba
 
 <section><h2>Matriz RAM 5×5: antes y después</h2>
 <div class="ramwrap"><div id="ram"></div><div class="tw"><table id="rpos"></table></div></div>
-<p class="note">I inicial (1C) · N sin inspección · T TBI · R RBI-2 · F FFS Nivel 2 apto · X FFS no apto con reparación. Cualitativo: la celda. Cuantitativo: EMV en $/año. Matriz provisional por suma de índices (≤5 bajo, 6 medio, 7 medio-alto, ≥8 alto), anclada en 1C y 3C del paper.</p></section>
+<p class="note">I inicial (1C) · N sin inspección · T TBI · R RBI-2 · F FFS Nivel 2 apto · X FFS no apto con reparación. Cualitativo: la celda. Cuantitativo: EMV en $/año. Matriz corporativa Ecopetrol (VRS).</p></section>
+
+
+<section><h2>Motor Df de API 581 (Parte 2) y efecto de la NDE</h2>
+<p class="note" style="margin:0 0 10px">Eqs. 2.12–2.20 con Tablas 4.5 y 4.6, según la plantilla Ecopetrol STAP (3.ª ed.). Datos del paper: t_rd 8,3 mm (2018), Cr 0,05 mm/a adelgazamiento y 0,127 mm/a CUI. t_min no está en el paper: es un supuesto que usted puede mover.</p>
+<div class="grid">
+<label>t_min (supuesto) <b id="v_tm"></b><input id="tm" type="range" min="2" max="8" step="0.25" value="4"></label>
+<label>Año evaluado <b id="v_dy"></b><input id="dy" type="range" min="2023" max="2045" step="1" value="2027"></label>
+</div>
+<div class="tw" style="margin-top:12px"><table id="dft"></table></div>
+<p class="note">Con la forma de SR_P de API 581 (S·E·t_min/(FS·t_rd), sin α) el Df de 2023 cae en la categoría 1, coherente con el 1C del paper. La inspección no repara el daño: actualiza las probabilidades de los tres estados de daño.</p></section>
 
 <section><h2>Oropallo: lo que se verificó</h2><div class="tw"><table>
 <tr><th>Estrategia</th><th>Intrusivo impreso</th><th>Intrusivo recalculado</th><th>No intrusivo impreso</th><th>No intrusivo recalculado</th><th>Estado</th></tr>
@@ -104,7 +114,8 @@ const D={"base": 2026, "ny": 11, "G": {"r": 0.1, "price": 70.0, "margin": 8.0, "
 const fmsf=s=>Math.pow(10,-0.02*(s/10)+1);
 const pcat=d=>d<=2?1:d<=10?2:d<=30?3:d<=100?4:5;
 const ccat=c=>c<=1e4?'A':c<=1e5?'B':c<=1e6?'C':c<=1e7?'D':'E';
-const lvl=(p,c)=>{const s=p+'ABCDE'.indexOf(c)+1;return s<=5?'B':s==6?'M':s==7?'MA':'A'};
+const MAT={5:['M','M','H','H','VH'],4:['L','M','M','H','H'],3:['N','L','M','M','H'],2:['N','N','L','M','M'],1:['N','N','N','L','L']};
+const lvl=(p,c)=>MAT['ABCDE'.indexOf(c)+1][p-1];
 function run(G,f,r){
  const F=fmsf(G.fms_score),rows=[];
  for(const e in D.eq){const d=D.eq[e],prev=[null,null];
@@ -132,7 +143,7 @@ const $=id=>document.getElementById(id);const nf=new Intl.NumberFormat('es-CO',{
 const fm=x=>(x<0?'−':'')+'$'+nf.format(Math.abs(x));
 const ids=['r','price','margin','down','insp','rep','fms'];
 function state(){const f={price:+$('price').value,margin:+$('margin').value,down:+$('down').value,insp:+$('insp').value,rep:+$('rep').value};return {f,r:+$('r').value,G:Object.assign({},D.G,{fms_score:+$('fms').value})}}
-const ORD=['B','M','MA','A'];
+const ORD=['N','L','M','H','VH'];
 function render(){const s=state();
  $('v_r').textContent=(s.r*100).toFixed(1)+' %';for(const k of ['price','margin','down','insp','rep'])$('v_'+k).textContent='×'+s.f[k].toFixed(2);
  $('v_fms').textContent=s.G.fms_score+' pts · FMS '+fmsf(s.G.fms_score).toFixed(3);
@@ -200,8 +211,16 @@ function renderEx(){
  $('rpos').innerHTML='<tr><th>Tag</th><th>Posición</th><th>Año</th><th>Df</th><th>Celda</th><th>EMV $/a</th><th>Δ cat.</th><th>Evitado vs N $/a</th></tr>'+P.map(q=>`<tr><td>${q.tg}</td><td class="t">${q.lab}</td><td>${q.y}</td><td>${q.df.toFixed(2)}</td><td><span class="pill ${lvl(q.pc,cc)}">${q.pc}${cc} ${lvl(q.pc,cc)}</span></td><td>${nf.format(q.emv)}</td><td>${q.tg=='I'?'-':P[1].pc-q.pc}</td><td>${q.tg=='I'?'-':nf.format(eN-q.emv)}</td></tr>`).join('');
 }
 
-function all(){render();renderEx()}
-for(const i of [...ids,'yr','tgt','ca1','ca2','dias','sc','dff'])$(i).addEventListener('input',all);
+
+const COND={D:[0.4,0.33,0.27],C:[0.5,0.3,0.2],B:[0.7,0.2,0.1],A:[0.9,0.09,0.01]},PRI=[0.7,0.2,0.1];
+function nd(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p}
+function dfEng(art,sr,eff){let I=PRI.slice();if(eff&&eff!='N'){I=I.map((v,k)=>v*COND[eff][k])}const s=I.reduce((a,b)=>a+b,0);const po=I.map(v=>v/s);let tot=0;[1,2,4].forEach((D,k)=>{const x=1-D*art;const b=(x-sr)/Math.sqrt((D*art*0.2)**2+(x*0.2)**2+(sr*0.05)**2);tot+=po[k]*nd(-b)});return Math.max(tot/1.56e-4,0.1)}
+function renderDf(){const tm=+$('tm').value,y=+$('dy').value;$('v_tm').textContent=tm+' mm';$('v_dy').textContent=y;
+ const FS=(240+415)/2*1.1,sr=151*1*tm/(FS*8.3),age=y-2018,at=0.05*age/8.3,ac=0.127*age/8.3;
+ $('dft').innerHTML='<tr><th>Efectividad</th><th>Df CUI</th><th>Cat.</th><th>Df adelgazamiento</th><th>Cat.</th></tr>'+['N','D','C','B','A'].map(e=>{const a=dfEng(ac,sr,e),b=dfEng(at,sr,e);return `<tr><td class="t">${e=='N'?'Sin inspección':'Inspección '+e}</td><td>${a.toFixed(2)}</td><td>${pcat(a)}</td><td>${b.toFixed(2)}</td><td>${pcat(b)}</td></tr>`}).join('')+`<tr><td class="t">Df 2023 sin inspección</td><td>${dfEng(0.127*5/8.3,sr,'N').toFixed(2)}</td><td>${pcat(dfEng(0.127*5/8.3,sr,'N'))}</td><td>${dfEng(0.05*5/8.3,sr,'N').toFixed(2)}</td><td>${pcat(dfEng(0.05*5/8.3,sr,'N'))}</td></tr>`}
+
+function all(){render();renderEx();renderDf()}
+for(const i of [...ids,'yr','tgt','ca1','ca2','dias','sc','dff','tm','dy'])$(i).addEventListener('input',all);
 $('reset').addEventListener('click',()=>{const d={r:.10,price:1,margin:1,down:1,insp:1,rep:1,fms:700};for(const k in d)$(k).value=d[k];all()});
 all();
 </script>
