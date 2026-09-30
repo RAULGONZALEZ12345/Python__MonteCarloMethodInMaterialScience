@@ -30,6 +30,9 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--mute);font:11px var
 .note{font-size:13px;color:var(--mute);margin:8px 0 0}
 details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-weight:600}details p{margin:6px 0 0;font-size:14px}
 .tag{font:500 11px var(--fm);border:1px solid var(--line);padding:1px 6px;color:var(--mute)}
+.ramwrap{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px;align-items:start}@media(max-width:700px){.ramwrap{grid-template-columns:1fr}}
+#ram{display:grid;grid-template-columns:22px repeat(5,1fr);gap:2px;font:600 12px var(--fm)}#ram div{min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;color:#16212b}#ram .ax{min-height:0;background:none;color:var(--mute);font-weight:500}
+.cB{background:#bfe5c9}.cM{background:#f3e3a1}.cMA{background:#f3c2a4}.cA{background:#ee9b94}
 button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);background:var(--steel);color:var(--bg);cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--risk);outline-offset:2px}
 </style>
 <div class="wrap">
@@ -59,6 +62,24 @@ button{font:500 13px var(--fb);padding:6px 12px;border:1px solid var(--steel);ba
 
 <section><h2>Flujo anual descontado</h2><div id="ch1"></div><p class="note">Barras: riesgo evitado esperado (naranja) y flujo de caja incremental (azul). Línea: VP neto acumulado. Un valor negativo de riesgo significa riesgo adicional aceptado al diferir.</p></section>
 <section><h2>Sensibilidad del VAN a 10 años</h2><div id="ch2"></div></section>
+
+
+<section><h2>Ejemplo numérico: equipo del paper (1C)</h2>
+<p class="note" style="margin:0 0 10px">Datos del paper: 4.000 $/m², 10.000 $/persona, 0,1 persona/m², 40.000 $/día, plan TBI y RBI-2. Supuestos que puede mover: áreas de consecuencia y días de paro. 40.000 $ es la producción diaria, no un costo por metro.</p>
+<div class="grid">
+<label>CA de daño al componente (m²) <b id="v_ca1"></b><input id="ca1" type="range" min="10" max="300" step="5" value="50"></label>
+<label>CA de lesiones (m²) <b id="v_ca2"></b><input id="ca2" type="range" min="10" max="400" step="5" value="80"></label>
+<label>Días de paro por falla <b id="v_dias"></b><input id="dias" type="range" min="1" max="60" step="1" value="10"></label>
+<label>Puntos de gestión del paper <b id="v_sc"></b><input id="sc" type="range" min="300" max="900" step="25" value="750"></label>
+<label>Df tras un FFS apto <b id="v_dff"></b><input id="dff" type="range" min="1" max="20" step="0.5" value="3"></label>
+</div>
+<div class="kpis" id="exk" style="margin-top:12px"></div>
+<div class="tw" style="margin-top:12px"><table id="ext"></table></div>
+<p class="note">Modelo propio: el Df crece con g calibrado para cruzar 30 (límite de la categoría 3) en 2033, primera inspección RBI del paper. Tras la inspección B vuelve a 0,09. TBI vuelve a 1 en su parada interna. Para este 1C el riesgo evitado es de cientos de dólares por año; casi todo el beneficio es la parada interna que RBI evita.</p></section>
+
+<section><h2>Matriz RAM 5×5: antes y después</h2>
+<div class="ramwrap"><div id="ram"></div><div class="tw"><table id="rpos"></table></div></div>
+<p class="note">I inicial (1C) · N sin inspección · T TBI · R RBI-2 · F FFS Nivel 2 apto · X FFS no apto con reparación. Cualitativo: la celda. Cuantitativo: EMV en $/año. Matriz provisional por suma de índices (≤5 bajo, 6 medio, 7 medio-alto, ≥8 alto), anclada en 1C y 3C del paper.</p></section>
 
 <section><h2>Oropallo: lo que se verificó</h2><div class="tw"><table>
 <tr><th>Estrategia</th><th>Intrusivo impreso</th><th>Intrusivo recalculado</th><th>No intrusivo impreso</th><th>No intrusivo recalculado</th><th>Estado</th></tr>
@@ -148,7 +169,39 @@ function render(){const s=state();
  g2+=`<line x1="${sx(base)}" x2="${sx(base)}" y1="0" y2="${H2-22}" stroke="var(--ink)" stroke-width="2"/>`;
  $('ch2').innerHTML=`<svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Tornado">${g2}</svg><p class="note">Cada barra va del factor bajo al alto de una palanca, con las demás en su valor actual. Línea: VAN actual (${fm(base)}).</p>`;
 }
-for(const i of [...ids,'yr','tgt'])$(i).addEventListener('input',render);
-$('reset').addEventListener('click',()=>{const d={r:.10,price:1,margin:1,down:1,insp:1,rep:1,fms:700};for(const k in d)$(k).value=d[k];render()});
-render();
+
+const EXT={insp:{2023:240,2026:240,2029:360,2032:240,2035:240,2038:360},loss:{2029:10000,2038:10000},rbi:{2023:210,2033:600,2050:600}};
+function exRun(p){
+ const F=Math.pow(10,-0.02*(p.score/10)+1),fcc=p.ca1*4000,lse=p.ca2*0.1*10000,fcp=p.dias*40000,FC=fcc+lse+fcp;
+ const g=Math.pow(30/1,1/10)-1,dfB=30/Math.pow(1+g,17),rows=[];let dT,dR;
+ for(let y=2023;y<=2036;y++){const t=y-2023,dN=Math.pow(1+g,t);
+  if(t==0){dT=dR=1}else{dT=(EXT.loss[y]||0)>0?1:dT*(1+g);dR=(EXT.rbi[y]||0)>0?dfB:dR*(1+g)}
+  const e=d=>3.06e-5*d*F*FC,cit=EXT.insp[y]||0,lst=EXT.loss[y]||0,cir=EXT.rbi[y]||0;
+  const x={y,t,dN,dT,dR,eN:e(dN),eT:e(dT),eR:e(dR),si:cit-cir,sl:lst};x.dE=x.eT-x.eR;x.ben=x.dE+x.si+x.sl;x.fd=1/Math.pow(1+p.r,t);
+  const c=[x.dE,x.si,x.sl];x.gb=c.filter(v=>v>0).reduce((a,b)=>a+b,0);x.gc=-c.filter(v=>v<0).reduce((a,b)=>a+b,0);rows.push(x)}
+ const npv=(k,n)=>rows.filter(x=>x.t<=n).reduce((s,x)=>s+x[k]*x.fd,0),nom=(k,n)=>rows.filter(x=>x.t<=n).reduce((s,x)=>s+x[k],0);
+ const m={};for(const n of [1,10]){const pvb=npv('gb',n),pvc=npv('gc',n);m[n]={npv:npv('ben',n),sir:pvc?pvb/pvc:null,roi:pvc?(pvb-pvc)/pvc:null,insp:nom('si',n),loss:nom('sl',n),risk:nom('dE',n)}}
+ m.eaa=m[10].npv*p.r/(1-Math.pow(1+p.r,-10));let cum=0;const cs=rows.map(x=>(cum+=x.ben*x.fd));m.pb=null;for(let i=0;i<rows.length;i++){if(Math.min(...cs.slice(i))>=0){m.pb=rows[i].y;break}}
+ return {FC,fcc,lse,fcp,g,dfB,F,rows,m,gff:3.06e-5}}
+function renderEx(){
+ const p={ca1:+$('ca1').value,ca2:+$('ca2').value,dias:+$('dias').value,score:+$('sc').value,r:+$('r').value};
+ $('v_ca1').textContent=p.ca1+' m²';$('v_ca2').textContent=p.ca2+' m²';$('v_dias').textContent=p.dias+' d';$('v_sc').textContent=p.score+' pts';$('v_dff').textContent='Df = '+(+$('dff').value).toFixed(1);
+ const E=exRun(p),m=E.m,cc=ccat(E.FC);
+ const K=[['FC = DPN',fm(E.FC)+' · cat. '+cc],['LSE = FC_inj',fm(E.lse)],['VAN 1 año',fm(m[1].npv)],['VAN 10 años',fm(m[10].npv)],['  menor inspección',fm(m[10].insp)],['  menor pérdida de producción',fm(m[10].loss)],['  ΔEMV (riesgo)',fm(m[10].risk)],['SIR / ROI',m[10].sir.toFixed(1)+' / '+(m[10].roi*100).toFixed(0)+' %'],['Payback',m.pb||'no recupera'],['CEA (renta equivalente)',fm(m.eaa)+'/año']];
+ $('exk').innerHTML=K.map(k=>`<div class="kpi"><small>${k[0]}</small><span style="font-size:16px">${k[1]}</span></div>`).join('');
+ const ys=[2023,2026,2029,2030,2032,2033,2034,2036];
+ $('ext').innerHTML='<tr><th>Año</th><th>Df N</th><th>Df TBI</th><th>Df RBI-2</th><th>EMV N</th><th>EMV TBI</th><th>EMV RBI</th><th>ΔEMV</th><th>Ahorro insp.</th><th>Ahorro prod.</th><th>Beneficio</th></tr>'+E.rows.filter(x=>ys.includes(x.y)).map(x=>`<tr><td>${x.y}</td><td>${x.dN.toFixed(1)}</td><td>${x.dT.toFixed(1)}</td><td>${x.dR.toFixed(2)}</td><td>${nf.format(x.eN)}</td><td>${nf.format(x.eT)}</td><td>${nf.format(x.eR)}</td><td class="${x.dE<0?'neg':''}">${nf.format(x.dE)}</td><td>${nf.format(x.si)}</td><td>${nf.format(x.sl)}</td><td>${nf.format(x.ben)}</td></tr>`).join('');
+ // RAM
+ const at=y=>E.rows.find(x=>x.y==y);const dffs=+$('dff').value;
+ const P=[['I','Inicial (paper)',2023,1],['N','Sin inspección',2036,at(2036).dN],['T','TBI',2033,at(2033).dT],['R','RBI-2 (insp. B)',2033,at(2033).dR],['F','FFS Nivel 2 apto',2036,dffs],['X','FFS no apto + reparación',2036,1]].map(([tg,lab,y,df])=>({tg,lab,y,df,pc:pcat(df),emv:E.gff*df*E.F*E.FC}));
+ const eN=P[1].emv;let h='';
+ for(let p=5;p>=1;p--){h+=`<div class="ax">${p}</div>`;for(let c=1;c<=5;c++){const L=lvl(p,'ABCDE'[c-1]),tg=P.filter(q=>q.pc==p&&cc=='ABCDE'[c-1]&&'ABCDE'[c-1]==cc).filter(q=>c==('ABCDE'.indexOf(cc)+1)).map(q=>q.tg).join(' ');h+=`<div class="c${L}">${L}${tg?'<br>'+tg:''}</div>`}}
+ h+='<div class="ax"></div>'+[...'ABCDE'].map(c=>`<div class="ax">${c}</div>`).join('');$('ram').innerHTML=h;
+ $('rpos').innerHTML='<tr><th>Tag</th><th>Posición</th><th>Año</th><th>Df</th><th>Celda</th><th>EMV $/a</th><th>Δ cat.</th><th>Evitado vs N $/a</th></tr>'+P.map(q=>`<tr><td>${q.tg}</td><td class="t">${q.lab}</td><td>${q.y}</td><td>${q.df.toFixed(2)}</td><td><span class="pill ${lvl(q.pc,cc)}">${q.pc}${cc} ${lvl(q.pc,cc)}</span></td><td>${nf.format(q.emv)}</td><td>${q.tg=='I'?'-':P[1].pc-q.pc}</td><td>${q.tg=='I'?'-':nf.format(eN-q.emv)}</td></tr>`).join('');
+}
+
+function all(){render();renderEx()}
+for(const i of [...ids,'yr','tgt','ca1','ca2','dias','sc','dff'])$(i).addEventListener('input',all);
+$('reset').addEventListener('click',()=>{const d={r:.10,price:1,margin:1,down:1,insp:1,rep:1,fms:700};for(const k in d)$(k).value=d[k];all()});
+all();
 </script>
